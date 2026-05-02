@@ -36,18 +36,21 @@ router.post("/", upload.single("photo"), async (req, res) => {
   const photo = req.file ? `/uploads/${req.file.filename}` : null;
 
   try {
-    // Generate member ID (e.g. M-001)
+    // Generate member ID dynamically from CompanyProfile shortCode
     const count = await prisma.member.count();
-    const memberId = `M-${String(count + 1).padStart(3, '0')}`;
+    const profiles: any[] = await prisma.$queryRaw`SELECT shortCode FROM CompanyProfile LIMIT 1`;
+    const shortCode = profiles.length > 0 && profiles[0].shortCode ? profiles[0].shortCode : "SSM";
+    const memberId = `${shortCode}${String(count + 1).padStart(3, '0')}`;
 
     const member = await prisma.member.create({
       data: {
         memberId,
         name,
         phone,
-        email,
-        nid,
-        address,
+        // Convert empty strings to null for optional unique fields
+        email: email && email.trim() !== '' ? email.trim() : null,
+        nid: nid && nid.trim() !== '' ? nid.trim() : null,
+        address: address || null,
         photo,
         type,
         position,
