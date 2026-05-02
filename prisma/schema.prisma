@@ -1,0 +1,142 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(cuid())
+  name      String
+  email     String   @unique
+  password  String
+  role      String   @default("STAFF") // ADMIN, STAFF
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Member {
+  id           String   @id @default(cuid())
+  memberId     String   @unique // custom readable ID like M-001
+  name         String
+  phone        String   @unique
+  email        String?
+  nid          String?  @unique
+  address      String?
+  photo        String?
+  type         String   @default("General") // General Member, Committee Member
+  position     String   @default("Member") // President, Member, etc.
+  status       String   @default("ACTIVE") // ACTIVE, SUSPENDED, CANCELLED
+  joinDate     DateTime @default(now())
+  
+  savingsAccounts SavingsAccount[]
+  loans          Loan[]
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+}
+
+model SavingsAccount {
+  id           String   @id @default(cuid())
+  accountNo    String   @unique
+  memberId     String
+  member       Member   @relation(fields: [memberId], references: [id])
+  type         String   // GENERAL, DPS, FDR
+  balance      Float    @default(0)
+  interestRate Float    @default(0)
+  status       String   @default("ACTIVE")
+  openDate     DateTime @default(now())
+  
+  transactions SavingsTransaction[]
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model SavingsTransaction {
+  id               String         @id @default(cuid())
+  savingsAccountId String
+  savingsAccount   SavingsAccount @relation(fields: [savingsAccountId], references: [id])
+  type             String         // DEPOSIT, WITHDRAWAL, INTEREST
+  amount           Float
+  date             DateTime       @default(now())
+  reference        String?
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+}
+
+model Loan {
+  id            String   @id @default(cuid())
+  loanNo        String   @unique
+  memberId      String
+  member        Member   @relation(fields: [memberId], references: [id])
+  amount        Float
+  interestRate  Float
+  totalPayable  Float
+  totalPaid     Float    @default(0)
+  status        String   @default("PENDING") // PENDING, APPROVED, ACTIVE, COMPLETED, DEFAULTED
+  issueDate     DateTime?
+  endDate       DateTime?
+  
+  installments  LoanInstallment[]
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+model LoanInstallment {
+  id        String   @id @default(cuid())
+  loanId    String
+  loan      Loan     @relation(fields: [loanId], references: [id])
+  amount    Float
+  date      DateTime @default(now())
+  status    String   @default("PAID") // PAID, LATE
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Voucher {
+  id          String   @id @default(cuid())
+  voucherNo   String   @unique
+  type        String   // INCOME, EXPENSE, INVESTMENT
+  category    String   // Salary, Rent, Office Cost, Profit, etc.
+  amount      Float
+  description String?
+  date        DateTime @default(now())
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Position {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model MemberType {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model CompanyProfile {
+  id               String   @id @default("1")
+  name             String?
+  shortCode        String?
+  logo             String?
+  establishedYear  String?
+  registrationNo   String?
+  tinNo            String?
+  vatNo            String?
+  tradeLicenseNo   String?
+  hotline          String?
+  website          String?
+  socialMediaLinks String?
+  bankAccountNo    String?
+  bankName         String?
+  bankBranch       String?
+  address          String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+}
