@@ -1,7 +1,7 @@
 import { Outlet, Link, useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
-import { 
-  LayoutDashboard, Users, PiggyBank, CreditCard, 
+import {
+  LayoutDashboard, Users, PiggyBank, CreditCard,
   FileText, Briefcase, Settings, LogOut, Menu, X, ChevronDown, ChevronRight
 } from "lucide-react";
 import { useState } from "react";
@@ -32,9 +32,9 @@ export default function DashboardLayout() {
     { name: "ঋণ ব্যবস্থাপনা", path: "/loans", icon: CreditCard },
     { name: "হিসাবরক্ষণ ও ভাউচার", path: "/accounts", icon: Briefcase },
     { name: "রিপোর্টস", path: "/reports", icon: FileText },
-    { 
-      name: "সেটিংস", 
-      path: "/settings", 
+    {
+      name: "সেটিংস",
+      path: "/settings",
       icon: Settings,
       subItems: [
         { name: "কোম্পানী প্রোফাইল", path: "/settings/profile" },
@@ -49,7 +49,7 @@ export default function DashboardLayout() {
   return (
     <div className="min-h-screen bg-slate-50 flex">
       {/* Sidebar - Mobile overlay */}
-      <div 
+      <div
         className={clsx(
           "fixed inset-0 z-20 bg-black/50 lg:hidden transition-opacity",
           sidebarOpen ? "opacity-100" : "opacity-0 pointer-events-none"
@@ -58,9 +58,9 @@ export default function DashboardLayout() {
       />
 
       {/* Sidebar */}
-      <aside 
+      <aside
         className={clsx(
-          "fixed inset-y-0 left-0 z-30 w-64 bg-slate-900 text-white transform transition-transform duration-300 lg:translate-x-0 lg:static flex flex-col h-screen",
+          "fixed inset-y-0 left-0 z-30 w-64 bg-slate-900 text-white transform transition-transform duration-300 lg:translate-x-0 lg:sticky lg:top-0 lg:h-screen flex flex-col",
           sidebarOpen ? "translate-x-0" : "-translate-x-full"
         )}
       >
@@ -86,8 +86,8 @@ export default function DashboardLayout() {
                       onClick={() => toggleMenu(item.name)}
                       className={clsx(
                         "w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-sm font-medium transition-colors",
-                        isActive 
-                          ? "bg-blue-600/10 text-blue-500" 
+                        isActive
+                          ? "bg-blue-600/10 text-blue-500"
                           : "text-slate-300 hover:bg-slate-800 hover:text-white"
                       )}
                     >
@@ -103,8 +103,8 @@ export default function DashboardLayout() {
                       onClick={() => setSidebarOpen(false)}
                       className={clsx(
                         "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors",
-                        isActive 
-                          ? "bg-blue-600 text-white" 
+                        isActive
+                          ? "bg-blue-600 text-white"
                           : "text-slate-300 hover:bg-slate-800 hover:text-white"
                       )}
                     >
@@ -165,13 +165,13 @@ export default function DashboardLayout() {
       {/* Main Content */}
       <div className="flex-1 flex flex-col min-w-0">
         <header className="h-16 bg-white border-b flex items-center px-4 lg:px-8 justify-between sticky top-0 z-10">
-          <button 
+          <button
             onClick={() => setSidebarOpen(true)}
             className="lg:hidden p-2 rounded-md hover:bg-slate-100 text-slate-600"
           >
             <Menu size={24} />
           </button>
-          
+
           <div className="ml-auto flex items-center gap-4">
             <span className="text-sm font-medium text-slate-700 hidden sm:block">
               {new Date().toLocaleDateString('bn-BD', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
@@ -179,7 +179,7 @@ export default function DashboardLayout() {
           </div>
         </header>
 
-        <main className="flex-1 p-4 lg:p-8 overflow-y-auto">
+        <main className="flex-1 p-4 lg:p-8">
           <Outlet />
         </main>
       </div>
