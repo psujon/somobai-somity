@@ -33,8 +33,35 @@ model Member {
   
   savingsAccounts SavingsAccount[]
   loans          Loan[]
+  monthlySavings MonthlySavingsSummary[]
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
+}
+
+// মাসওয়াইজ সঞ্চয় সারসংক্ষেপ (সদস্য × বছর)
+model MonthlySavingsSummary {
+  id        String  @id @default(cuid())
+  memberId  String
+  member    Member  @relation(fields: [memberId], references: [id])
+  year      Int     // যেমন: 2026
+
+  jan  Float @default(0)  // জানুয়ারি
+  feb  Float @default(0)  // ফেব্রুয়ারি
+  mar  Float @default(0)  // মার্চ
+  apr  Float @default(0)  // এপ্রিল
+  may  Float @default(0)  // মে
+  jun  Float @default(0)  // জুন
+  jul  Float @default(0)  // জুলাই
+  aug  Float @default(0)  // আগস্ট
+  sep  Float @default(0)  // সেপ্টেম্বর
+  oct  Float @default(0)  // অক্টোবর
+  nov  Float @default(0)  // নভেম্বর
+  dec  Float @default(0)  // ডিসেম্বর
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([memberId, year])  // একজন সদস্যের একটি বছরে একটিই রেকর্ড
 }
 
 model SavingsAccount {

@@ -79,9 +79,16 @@ router.post("/:id/deposit", async (req, res) => {
     return res.status(400).json({ message: "Invalid amount" });
   }
 
+  // মাসের নাম → DB কলাম ম্যাপিং
+  const monthColumns: Record<number, string> = {
+    1: "jan", 2: "feb", 3: "mar", 4: "apr",
+    5: "may", 6: "jun", 7: "jul", 8: "aug",
+    9: "sep", 10: "oct", 11: "nov", 12: "dec",
+  };
+
   try {
     const transaction = await prisma.$transaction(async (tx) => {
-      // Create transaction record with all fields
+      // ১. ট্রানজেকশন রেকর্ড তৈরি
       const txRecord = await tx.savingsTransaction.create({
         data: {
           savingsAccountId: id,
@@ -94,19 +101,18 @@ router.post("/:id/deposit", async (req, res) => {
         },
       });
 
-      // Update account balance
+      // ২. হিসাবের ব্যালেন্স আপডেট এবং memberId বের করা
       const account = await tx.savingsAccount.update({
         where: { id },
-        data: {
-          balance: { increment: numAmount },
-        },
+        data: { balance: { increment: numAmount } },
+        select: { accountNo: true, memberId: true },
       });
 
-      // Create an income voucher automatically
+      // ৩. ইনকাম ভাউচার স্বয়ংক্রিয়ভাবে তৈরি
       const voucherCount = await tx.voucher.count();
       await tx.voucher.create({
         data: {
-          voucherNo: voucherNo || `V-${String(voucherCount + 1).padStart(5, '0')}`,
+          voucherNo: voucherNo || `V-${String(voucherCount + 1).padStart(5, "0")}`,
           type: "INCOME",
           category: "Savings Deposit",
           amount: numAmount,
@@ -117,6 +123,30 @@ router.post("/:id/deposit", async (req, res) => {
         },
       });
 
+      // ৪. মাসওয়াইজ সারসংক্ষেপ আপডেট (depositMonth থেকে বছর ও মাস বের করা)
+      if (depositMonth) {
+        const [yearStr, monthStr] = depositMonth.split("-");
+        const year = parseInt(yearStr);
+        const monthNum = parseInt(monthStr);
+        const colName = monthColumns[monthNum];
+
+        if (colName && !isNaN(year)) {
+          await (tx as any).monthlySavingsSummary.upsert({
+            where: {
+              memberId_year: { memberId: account.memberId, year },
+            },
+            update: {
+              [colName]: { increment: numAmount },
+            },
+            create: {
+              memberId: account.memberId,
+              year,
+              [colName]: numAmount,
+            },
+          });
+        }
+      }
+
       return { txRecord, account };
     });
 
@@ -124,6 +154,24 @@ router.post("/:id/deposit", async (req, res) => {
   } catch (error: any) {
     console.error("Deposit error:", error);
     res.status(500).json({ message: error?.message || "Server error during deposit" });
+  }
+});
+
+// GET /api/savings/monthly-summary/:memberId  — মাসওয়াইজ সারসংক্ষেপ
+router.get("/monthly-summary/:memberId", async (req, res) => {
+  const { memberId } = req.params;
+  try {
+    const summary = await (prisma as any).monthlySavingsSummary.findMany({
+      where: { memberId },
+      orderBy: { year: "desc" },
+      include: {
+        member: { select: { name: true, memberId: true } },
+      },
+    });
+    res.json(summary);
+  } catch (error) {
+    console.error("Monthly summary error:", error);
+    res.status(500).json({ message: "Error fetching monthly summary" });
   }
 });
 
