@@ -68,17 +68,37 @@ router.post("/", upload.single("photo"), async (req, res) => {
 });
 
 // Update a member
-router.put("/:id", async (req, res) => {
+router.put("/:id", upload.single("photo"), async (req, res) => {
   const { id } = req.params;
-  const data = req.body;
+  const { name, phone, email, nid, address, type, position, joinDate } = req.body;
+  const photo = req.file ? `/uploads/${req.file.filename}` : undefined;
 
   try {
+    const updateData: any = {
+      name,
+      phone,
+      email: email && email.trim() !== '' ? email.trim() : null,
+      nid: nid && nid.trim() !== '' ? nid.trim() : null,
+      address: address || null,
+      type,
+      position,
+      joinDate: joinDate ? new Date(joinDate) : undefined,
+    };
+
+    if (photo) {
+      updateData.photo = photo;
+    }
+
     const member = await prisma.member.update({
       where: { id },
-      data,
+      data: updateData,
     });
     res.json(member);
-  } catch (error) {
+  } catch (error: any) {
+    if (error.code === 'P2002') {
+      return res.status(400).json({ message: "Phone or NID already exists" });
+    }
+    console.error("Update error:", error);
     res.status(500).json({ message: "Error updating member" });
   }
 });

@@ -4,17 +4,29 @@ import {
   LayoutDashboard, Users, PiggyBank, CreditCard,
   FileText, Briefcase, Settings, LogOut, Menu, X, ChevronDown, ChevronRight
 } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import axios from "axios";
 import clsx from "clsx";
 
 export default function DashboardLayout() {
-  const { user, logout } = useAuth();
+  const { user, token, logout } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [openMenus, setOpenMenus] = useState<Record<string, boolean>>({
     "সেটিংস": location.pathname.startsWith("/settings")
   });
+  const [companyProfile, setCompanyProfile] = useState<any>(null);
+
+  useEffect(() => {
+    if (token) {
+      axios.get("http://localhost:5000/api/company-profile", {
+        headers: { Authorization: `Bearer ${token}` }
+      })
+        .then(res => setCompanyProfile(res.data))
+        .catch(err => console.error("Error fetching profile:", err));
+    }
+  }, [token]);
 
   const toggleMenu = (name: string) => {
     setOpenMenus(prev => ({ ...prev, [name]: !prev[name] }));
@@ -65,14 +77,16 @@ export default function DashboardLayout() {
         )}
       >
         <div className="h-16 flex-shrink-0 flex items-center justify-between px-6 bg-slate-950">
-          <span className="text-xl font-bold text-white tracking-wide">সমবায় সমিতি</span>
+          <span className="text-sm font-bold text-white tracking-wide truncate pr-2">
+            {companyProfile?.name || "সমবায় সমিতি"}
+          </span>
           <button onClick={() => setSidebarOpen(false)} className="lg:hidden">
             <X size={20} className="text-slate-400" />
           </button>
         </div>
 
         <div className="flex-1 overflow-y-auto p-4">
-          <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-4 px-2">মেন্যু</p>
+          {/* <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-4 px-2">মেন্যু</p> */}
           <nav className="space-y-1">
             {navItems.map((item) => {
               const Icon = item.icon;

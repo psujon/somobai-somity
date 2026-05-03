@@ -110,8 +110,11 @@ export default function Members() {
       }
 
       if (editingMember) {
-        await axios.put(`http://localhost:5000/api/members/${editingMember.id}`, formData, {
-          headers: { Authorization: `Bearer ${token}` }
+        await axios.put(`http://localhost:5000/api/members/${editingMember.id}`, data, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "multipart/form-data"
+          }
         });
       } else {
         await axios.post("http://localhost:5000/api/members", data, {
@@ -179,7 +182,8 @@ export default function Members() {
                 <th className="px-6 py-3 font-medium">ছবি</th>
                 <th className="px-6 py-3 font-medium">নাম ও আইডি</th>
                 <th className="px-6 py-3 font-medium">ফোন</th>
-                <th className="px-6 py-3 font-medium">ধরণ ও পদবী</th>
+                <th className="px-6 py-3 font-medium">মেম্বার ধরণ</th>
+                <th className="px-6 py-3 font-medium">মেম্বার পদবী</th>
                 <th className="px-6 py-3 font-medium">যোগদানের তারিখ</th>
                 <th className="px-6 py-3 font-medium">স্ট্যাটাস</th>
                 <th className="px-6 py-3 font-medium text-right">অ্যাকশন</th>
@@ -206,7 +210,9 @@ export default function Members() {
                   <td className="px-6 py-4 text-slate-600">{member.phone}</td>
                   <td className="px-6 py-4 text-slate-600">
                     <p className="text-sm">{member.type}</p>
-                    <p className="text-xs text-slate-500">{member.position}</p>
+                  </td>
+                  <td className="px-6 py-4 text-slate-600">
+                    <p className="text-sm">{member.position}</p>
                   </td>
                   <td className="px-6 py-4 text-slate-600">
                     {new Date(member.joinDate).toLocaleDateString('bn-BD')}
@@ -293,12 +299,12 @@ export default function Members() {
                   <label className="block text-sm font-medium text-slate-700 mb-1">যোগদানের তারিখ</label>
                   <input type="date" value={formData.joinDate} onChange={e => setFormData({ ...formData, joinDate: e.target.value })} className="w-full px-3 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-blue-500" />
                 </div>
-                {!editingMember && (
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">ছবি <span className="text-red-500 text-xs">(পরিবর্তনযোগ্য নহে)</span></label>
-                    <input type="file" accept="image/*" onChange={e => setPhotoFile(e.target.files?.[0] || null)} className="w-full px-3 py-1.5 border rounded-lg outline-none focus:ring-2 focus:ring-blue-500 text-sm file:mr-4 file:py-1 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100" />
-                  </div>
-                )}
+                {/* {!editingMember && ( */}
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">ছবি <span className="text-red-500 text-xs">(পরিবর্তনযোগ্য নহে)</span></label>
+                  <input type="file" accept="image/*" onChange={e => setPhotoFile(e.target.files?.[0] || null)} className="w-full px-3 py-1.5 border rounded-lg outline-none focus:ring-2 focus:ring-blue-500 text-sm file:mr-4 file:py-1 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100" />
+                </div>
+                {/* )} */}
               </div>
               <div className="pt-4 flex justify-end gap-3">
                 <button type="button" onClick={() => setShowModal(false)} className="px-4 py-2 text-slate-600 hover:bg-slate-100 rounded-lg">বাতিল</button>
