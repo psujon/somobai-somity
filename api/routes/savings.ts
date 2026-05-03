@@ -127,4 +127,71 @@ router.post("/:id/deposit", async (req, res) => {
   }
 });
 
+// GET /api/savings/statement/:memberId  — সদস্যের ব্যাংক স্টেটমেন্ট
+router.get("/statement/:memberId", async (req, res) => {
+  const { memberId } = req.params;
+  const { from, to } = req.query; // optional date filters
+
+  try {
+    // সদস্যের সকল সঞ্চয় হিসাব খুঁজে নাও
+    const accounts = await prisma.savingsAccount.findMany({
+      where: { memberId },
+      include: {
+        member: { select: { name: true, memberId: true, phone: true, address: true } },
+        transactions: {
+          where: {
+            ...(from || to
+              ? {
+                  transactionDate: {
+                    ...(from ? { gte: new Date(from as string) } : {}),
+                    ...(to ? { lte: new Date(new Date(to as string).setHours(23, 59, 59)) } : {}),
+                  },
+                }
+              : {}),
+          },
+          orderBy: { transactionDate: "asc" },
+        },
+      },
+    });
+
+    if (accounts.length === 0) {
+      return res.status(404).json({ message: "কোনো হিসাব পাওয়া যায়নি" });
+    }
+
+    // প্রতিটি হিসাবে রানিং ব্যালেন্স যোগ করো
+    const statementAccounts = accounts.map((acc) => {
+      let runningBalance = 0;
+      const txWithBalance = acc.transactions.map((tx) => {
+        if (tx.type === "DEPOSIT" || tx.type === "INTEREST") {
+          runningBalance += tx.amount;
+        } else if (tx.type === "WITHDRAWAL") {
+          runningBalance -= tx.amount;
+        }
+        return { ...tx, runningBalance };
+      });
+
+      const totalDeposit = acc.transactions
+        .filter((t) => t.type === "DEPOSIT")
+        .reduce((s, t) => s + t.amount, 0);
+      const totalWithdrawal = acc.transactions
+        .filter((t) => t.type === "WITHDRAWAL")
+        .reduce((s, t) => s + t.amount, 0);
+      const totalInterest = acc.transactions
+        .filter((t) => t.type === "INTEREST")
+        .reduce((s, t) => s + t.amount, 0);
+
+      return {
+        ...acc,
+        transactions: txWithBalance,
+        summary: { totalDeposit, totalWithdrawal, totalInterest },
+      };
+    });
+
+    res.json({ member: accounts[0].member, accounts: statementAccounts });
+  } catch (error) {
+    console.error("Statement error:", error);
+    res.status(500).json({ message: "Statement fetch error" });
+  }
+});
+
 export default router;

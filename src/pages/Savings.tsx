@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import axios from "axios";
 import { useAuth } from "../context/AuthContext";
-import { Plus, Search, DollarSign } from "lucide-react";
+import { Plus, Search, DollarSign, ArrowLeft, ChartBarDecreasing } from "lucide-react";
 
 export default function Savings() {
   const [accounts, setAccounts] = useState([]);
@@ -119,6 +119,7 @@ export default function Savings() {
                 <th className="px-6 py-3 font-medium">ধরণ</th>
                 <th className="px-6 py-3 font-medium text-right">বর্তমান ব্যালেন্স</th>
                 <th className="px-6 py-3 font-medium text-right">অ্যাকশন</th>
+                <th className="px-6 py-3 font-medium text-right">স্ট্যাটাস</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
@@ -150,6 +151,14 @@ export default function Savings() {
                     >
                       <DollarSign size={14} />
                       জমা দিন
+                    </button>
+                  </td>
+                  <td className=" py-2 text-right space-x-2">
+                    <button id="statusBtn"
+                      className="inline-flex items-center gap-1 text-sm bg-orange-50 text-orange-700 hover:bg-orange-100 px-3 py-1.5 rounded-lg transition"
+                    >
+                      <ChartBarDecreasing size={14} />
+                      স্ট্যাটাস
                     </button>
                   </td>
                 </tr>
