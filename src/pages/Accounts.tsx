@@ -177,7 +177,7 @@ export default function Accounts() {
       {/* Add Voucher Modal */}
       {showModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-md overflow-hidden">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-lg overflow-hidden">
             <div className="p-6 border-b flex justify-between items-center">
               <h3 className="text-xl font-bold text-slate-800">নতুন ভাউচার এন্ট্রি</h3>
               <button onClick={() => setShowModal(false)} className="text-slate-400 hover:text-slate-600">×</button>

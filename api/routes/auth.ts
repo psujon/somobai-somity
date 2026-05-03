@@ -28,6 +28,33 @@ router.post("/login", async (req, res) => {
       { expiresIn: "1d" }
     );
 
+    // ১. লগইন অ্যাক্টিভিটি সেভ করা
+    try {
+      const now = new Date();
+      // BD সময় এডজাস্টমেন্ট (GMT+6)
+      const bdTimeObj = new Date(now.getTime() + (6 * 60 * 60 * 1000));
+      
+      const bdTimeStr = now.toLocaleString("en-GB", {
+        timeZone: "Asia/Dhaka",
+        day: "2-digit", month: "2-digit", year: "numeric",
+        hour: "2-digit", minute: "2-digit", second: "2-digit",
+        hour12: true
+      });
+
+      await prisma.activityLog.create({
+        data: {
+          userId: user.id,
+          type: "LOGIN",
+          loginAt: bdTimeObj,
+          loginTime: bdTimeStr,
+          ipAddress: req.ip || req.headers["x-forwarded-for"]?.toString() || null,
+          userAgent: req.headers["user-agent"] || null,
+        },
+      });
+    } catch (logErr) {
+      console.error("Activity logging failed:", logErr);
+    }
+
     res.json({
       token,
       user: {
@@ -40,6 +67,39 @@ router.post("/login", async (req, res) => {
   } catch (error) {
     console.error("Login error:", error);
     res.status(500).json({ message: "Server error" });
+  }
+});
+
+// POST /api/auth/logout - লগআউট অ্যাক্টিভিটি ট্র্যাক করা
+router.post("/logout", async (req, res) => {
+  const { userId } = req.body;
+  if (!userId) return res.status(400).json({ message: "User ID required" });
+
+  try {
+    const now = new Date();
+    const bdTimeObj = new Date(now.getTime() + (6 * 60 * 60 * 1000));
+    
+    const bdTimeStr = now.toLocaleString("en-GB", {
+      timeZone: "Asia/Dhaka",
+      day: "2-digit", month: "2-digit", year: "numeric",
+      hour: "2-digit", minute: "2-digit", second: "2-digit",
+      hour12: true
+    });
+
+    await prisma.activityLog.create({
+      data: {
+        userId: userId,
+        type: "LOGOUT",
+        loginAt: bdTimeObj,
+        loginTime: bdTimeStr,
+        ipAddress: req.ip || req.headers["x-forwarded-for"]?.toString() || null,
+        userAgent: req.headers["user-agent"] || null,
+      },
+    });
+    res.json({ message: "Logout logged" });
+  } catch (err) {
+    console.error("Logout logging failed:", err);
+    res.status(500).json({ message: "Logging failed" });
   }
 });
 

@@ -32,7 +32,40 @@ export default function DashboardLayout() {
     setOpenMenus(prev => ({ ...prev, [name]: !prev[name] }));
   };
 
-  const handleLogout = () => {
+  // ——— ইনঅ্যাক্টিভিটি অটো-লগআউট (৫ মিনিট) ———
+  useEffect(() => {
+    let timeoutId: any;
+
+    const resetTimer = () => {
+      if (timeoutId) clearTimeout(timeoutId);
+      timeoutId = setTimeout(() => {
+        handleLogout();
+      }, 5 * 60 * 1000); // ৫ মিনিট
+    };
+
+    // ইভেন্ট লিসেনার যুক্ত করা
+    const events = ["mousedown", "mousemove", "keypress", "scroll", "touchstart"];
+    events.forEach(event => document.addEventListener(event, resetTimer));
+
+    // প্রথমবার টাইমার চালু
+    resetTimer();
+
+    return () => {
+      if (timeoutId) clearTimeout(timeoutId);
+      events.forEach(event => document.removeEventListener(event, resetTimer));
+    };
+  }, [user, token]);
+
+  const handleLogout = async () => {
+    try {
+      if (user?.id) {
+        await axios.post("http://localhost:5000/api/auth/logout", { userId: user.id }, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+      }
+    } catch (err) {
+      console.error("Logout logging failed", err);
+    }
     logout();
     navigate("/login");
   };
@@ -196,6 +229,15 @@ export default function DashboardLayout() {
         <main className="flex-1 p-4 lg:p-8">
           <Outlet />
         </main>
+
+        <footer className="py-6 px-4 lg:px-8 bg-white border-t text-center">
+          <p className="text-sm text-slate-500">
+            © {new Date().getFullYear()} <span className="font-semibold text-slate-700">{companyProfile?.name || "সমবায় সমিতি"}</span>। সর্বস্বত্ব সংরক্ষিত।
+          </p>
+          <p className="text-[10px] mt-1.5 text-slate-400 uppercase tracking-widest">
+            Developed by <span className="text-slate-500 font-medium">SkyTree Technology Limited | Contact: 01646-999065 | </span> <span className="text-slate-500 font-medium lowercase">Email: skytreetechnology@gmail.com</span>
+          </p>
+        </footer>
       </div>
     </div>
   );

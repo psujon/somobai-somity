@@ -8,7 +8,7 @@ export default function Login() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
-  
+
   const { login } = useAuth();
   const navigate = useNavigate();
 
@@ -22,7 +22,7 @@ export default function Login() {
         email,
         password,
       });
-      
+
       login(res.data.token, res.data.user);
       navigate("/");
     } catch (err: any) {
@@ -39,16 +39,16 @@ export default function Login() {
           <h1 className="text-3xl font-bold text-white mb-2">সমবায় সমিতি</h1>
           <p className="text-blue-100">ম্যানেজমেন্ট সফটওয়্যার</p>
         </div>
-        
+
         <div className="p-8">
           <h2 className="text-2xl font-bold text-gray-800 mb-6 text-center">লগইন করুন</h2>
-          
+
           {error && (
             <div className="bg-red-50 border-l-4 border-red-500 text-red-700 p-4 rounded mb-6 text-sm">
               {error}
             </div>
           )}
-          
+
           <form onSubmit={handleSubmit} className="space-y-5">
             <div>
               <label className="block text-sm font-semibold text-gray-700 mb-1">ইমেইল</label>
@@ -61,7 +61,7 @@ export default function Login() {
                 placeholder="admin@coop.com"
               />
             </div>
-            
+
             <div>
               <label className="block text-sm font-semibold text-gray-700 mb-1">পাসওয়ার্ড</label>
               <input
@@ -73,7 +73,7 @@ export default function Login() {
                 placeholder="••••••••"
               />
             </div>
-            
+
             <button
               type="submit"
               disabled={loading}

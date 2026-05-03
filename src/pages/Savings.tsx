@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import axios from "axios";
 import { useAuth } from "../context/AuthContext";
-import { Plus, Search, DollarSign, ChartBarDecreasing, X } from "lucide-react";
+import { Plus, Search, DollarSign, ChartBarDecreasing, X, Edit } from "lucide-react";
 import { toast } from "react-toastify";
 
 export default function Savings() {
@@ -16,6 +16,15 @@ export default function Savings() {
   const [selectedMemberForStatus, setSelectedMemberForStatus] = useState<any>(null);
   const [monthlySummary, setMonthlySummary] = useState<any[]>([]);
   const [loadingSummary, setLoadingSummary] = useState(false);
+
+  // ——— ট্রানজেকশন এডিট স্টেট ———
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [lastTransactions, setLastTransactions] = useState<any[]>([]);
+  const [loadingTxs, setLoadingTxs] = useState(false);
+  const [editingTxId, setEditingTxId] = useState<string | null>(null);
+  const [editFormData, setEditFormData] = useState<any>(null);
+  const [selectedAccForEdit, setSelectedAccForEdit] = useState<any>(null);
+
   const { token } = useAuth();
 
   const [formData, setFormData] = useState({
@@ -99,6 +108,56 @@ export default function Savings() {
     }
   };
 
+  // লাস্ট ৫ ট্রানজেকশন ফেচ
+  const fetchLastTransactions = async (acc: any) => {
+    setSelectedAccForEdit(acc);
+    setShowEditModal(true);
+    setLoadingTxs(true);
+    setLastTransactions([]);
+    try {
+      const res = await axios.get(
+        `http://localhost:5000/api/savings/${acc.id}/last-transactions`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      setLastTransactions(res.data);
+    } catch (err) {
+      toast.error("ট্রানজেকশন লোড করতে ব্যর্থ");
+    } finally {
+      setLoadingTxs(false);
+    }
+  };
+
+  // আপডেট ট্রানজেকশন
+  const handleUpdateTransaction = async () => {
+    if (!editFormData || !editingTxId) return;
+    try {
+      await axios.put(`http://localhost:5000/api/savings/transactions/${editingTxId}`, editFormData, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      toast.success("সফলভাবে আপডেট হয়েছে");
+      setEditingTxId(null);
+      fetchLastTransactions(selectedAccForEdit);
+      fetchData(); // ব্যালেন্স রিফ্রেশ
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || "আপডেট ব্যর্থ");
+    }
+  };
+
+  // ডিলেট ট্রানজেকশন
+  const handleDeleteTransaction = async (id: string) => {
+    if (!window.confirm("আপনি কি নিশ্চিতভাবে এই ট্রানজেকশনটি ডিলেট করতে চান? এটি ডাটাবেজ এবং ব্যালেন্স থেকেও মুছে যাবে।")) return;
+    try {
+      await axios.delete(`http://localhost:5000/api/savings/transactions/${id}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      toast.success("সফলভাবে ডিলেট হয়েছে");
+      fetchLastTransactions(selectedAccForEdit);
+      fetchData(); // ব্যালেন্স রিফ্রেশ
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || "ডিলেট করতে সমস্যা হয়েছে");
+    }
+  };
+
   const q = searchQuery.toLowerCase().trim();
   const filteredAccounts = (accounts as any[]).filter(acc =>
     acc.accountNo.toLowerCase().includes(q) ||
@@ -142,8 +201,9 @@ export default function Savings() {
                 <th className="px-6 py-3 font-medium">সদস্যের নাম</th>
                 <th className="px-6 py-3 font-medium">ধরণ</th>
                 <th className="px-6 py-3 font-medium text-right">বর্তমান ব্যালেন্স</th>
-                <th className="px-6 py-3 font-medium text-right">অ্যাকশন</th>
-                <th className="px-6 py-3 font-medium text-right">স্ট্যাটাস</th>
+                <th className="px-6 py-3 font-medium text-center">অ্যাকশন</th>
+                <th className="px-6 py-3 font-medium text-center">স্ট্যাটাস</th>
+                <th className="px-6 py-3 font-medium text-center">অ্যাকশন</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
@@ -165,7 +225,7 @@ export default function Savings() {
                     </span>
                   </td>
                   <td className="px-6 py-4 text-right font-bold text-green-600">৳ {acc.balance.toLocaleString()}</td>
-                  <td className="px-6 py-4 text-right space-x-2">
+                  <td className="px-3 py-4 text-center space-x-2">
                     <button
                       onClick={() => {
                         setSelectedAccountId(acc.id);
@@ -177,13 +237,22 @@ export default function Savings() {
                       জমা দিন
                     </button>
                   </td>
-                  <td className=" py-2 text-right space-x-2">
-                    <button id="statusBtn"
+                  <td className=" py-2 text-center space-x-2">
+                    <button
                       onClick={() => fetchMonthlySummary(acc.member)}
                       className="inline-flex items-center gap-1 text-sm bg-orange-50 text-orange-700 hover:bg-orange-100 px-3 py-1.5 rounded-lg transition"
                     >
                       <ChartBarDecreasing size={14} />
                       স্ট্যাটাস
+                    </button>
+                  </td>
+                  <td className=" py-2 text-center space-x-2">
+                    <button id="last_5_transaction_edit_button"
+                      onClick={() => fetchLastTransactions(acc)}
+                      className="inline-flex items-center gap-1 text-sm bg-indigo-50 text-indigo-700 hover:bg-indigo-100 px-3 py-1.5 rounded-lg transition"
+                    >
+                      <Edit size={14} />
+                      পরিবর্তন
                     </button>
                   </td>
                 </tr>
@@ -434,6 +503,136 @@ export default function Savings() {
               >
                 বন্ধ করুন
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* Edit Last 5 Transactions Modal */}
+      {showEditModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
+            <div className="p-5 border-b flex justify-between items-center bg-indigo-700">
+              <h3 className="text-xl font-bold text-white">ট্রানজেকশন ইতিহাস (লাস্ট ৫টি)</h3>
+              <button onClick={() => setShowEditModal(false)} className="text-white/70 hover:text-white transition">
+                <X size={22} />
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-auto p-6">
+              {loadingTxs ? (
+                <div className="text-center py-12 text-slate-400">লোড হচ্ছে...</div>
+              ) : lastTransactions.length === 0 ? (
+                <div className="text-center py-12 text-slate-400">কোনো ট্রানজেকশন পাওয়া যায়নি।</div>
+              ) : (
+                <div className="space-y-4">
+                  {lastTransactions.map((tx) => (
+                    <div key={tx.id} className="border rounded-xl p-4 bg-slate-50 hover:border-indigo-200 transition">
+                      {editingTxId === tx.id ? (
+                        <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+                          <div>
+                            <label className="block text-[10px] text-slate-500 mb-1 uppercase font-bold">তারিখ</label>
+                            <input
+                              type="date"
+                              value={editFormData.transactionDate?.split('T')[0]}
+                              onChange={e => setEditFormData({ ...editFormData, transactionDate: e.target.value })}
+                              className="w-full px-2 py-1.5 border rounded text-sm outline-none focus:ring-1 focus:ring-indigo-500"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-[10px] text-slate-500 mb-1 uppercase font-bold">মাস</label>
+                            <input
+                              type="month"
+                              value={editFormData.depositMonth}
+                              onChange={e => setEditFormData({ ...editFormData, depositMonth: e.target.value })}
+                              className="w-full px-2 py-1.5 border rounded text-sm outline-none focus:ring-1 focus:ring-indigo-500"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-[10px] text-slate-500 mb-1 uppercase font-bold">ভাউচার</label>
+                            <input
+                              type="text"
+                              value={editFormData.voucherNo || ''}
+                              onChange={e => setEditFormData({ ...editFormData, voucherNo: e.target.value })}
+                              className="w-full px-2 py-1.5 border rounded text-sm outline-none focus:ring-1 focus:ring-indigo-500"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-[10px] text-slate-500 mb-1 uppercase font-bold">টাকা</label>
+                            <input
+                              type="number"
+                              value={editFormData.amount}
+                              onChange={e => setEditFormData({ ...editFormData, amount: e.target.value })}
+                              className="w-full px-2 py-1.5 border rounded text-sm outline-none focus:ring-1 focus:ring-indigo-500"
+                            />
+                          </div>
+                          <div className="flex items-end gap-2">
+                            <button onClick={handleUpdateTransaction} className="bg-green-600 text-white px-3 py-1.5 rounded text-sm hover:bg-green-700 flex-1">আপডেট</button>
+                            <button onClick={() => setEditingTxId(null)} className="bg-slate-400 text-white px-3 py-1.5 rounded text-sm hover:bg-slate-500">বাতিল</button>
+                          </div>
+                          <div className="col-span-full">
+                            <label className="block text-[10px] text-slate-500 mb-1 uppercase font-bold">রিমার্কস</label>
+                            <input
+                              type="text"
+                              value={editFormData.remarks || ''}
+                              onChange={e => setEditFormData({ ...editFormData, remarks: e.target.value })}
+                              className="w-full px-2 py-1.5 border rounded text-sm outline-none focus:ring-1 focus:ring-indigo-500"
+                            />
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="flex justify-between items-center flex-wrap gap-3">
+                          <div className="flex gap-6">
+                            <div>
+                              <div className="text-[10px] text-slate-400 uppercase font-bold">তারিখ</div>
+                              <div className="text-sm font-medium">{new Date(tx.transactionDate).toLocaleDateString('bn-BD')}</div>
+                            </div>
+                            <div>
+                              <div className="text-[10px] text-slate-400 uppercase font-bold">মাস</div>
+                              <div className="text-sm font-medium">{tx.depositMonth || '-'}</div>
+                            </div>
+                            <div>
+                              <div className="text-[10px] text-slate-400 uppercase font-bold">টাকা</div>
+                              <div className="text-sm font-bold text-green-600">৳ {tx.amount.toLocaleString()}</div>
+                            </div>
+                            <div>
+                              <div className="text-[10px] text-slate-400 uppercase font-bold">ভাউচার</div>
+                              <div className="text-sm">{tx.voucherNo || '-'}</div>
+                            </div>
+                          </div>
+                          <div className="flex gap-2">
+                            <button
+                              onClick={() => {
+                                setEditingTxId(tx.id);
+                                setEditFormData({ ...tx });
+                              }}
+                              className="p-2 text-indigo-600 hover:bg-indigo-50 rounded-lg transition"
+                              title="সম্পাদনা করুন"
+                            >
+                              <Edit size={18} />
+                            </button>
+                            <button
+                              onClick={() => handleDeleteTransaction(tx.id)}
+                              className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition"
+                              title="মুছে ফেলুন"
+                            >
+                              <X size={18} />
+                            </button>
+                          </div>
+                          {tx.remarks && (
+                            <div className="w-full mt-2 pt-2 border-t border-slate-200 text-xs text-slate-500 italic">
+                              রিমার্কস: {tx.remarks}
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div className="p-4 border-t bg-slate-50 flex justify-end">
+              <button onClick={() => setShowEditModal(false)} className="px-5 py-2 bg-slate-700 text-white rounded-lg hover:bg-slate-800 transition text-sm">বন্ধ করুন</button>
             </div>
           </div>
         </div>

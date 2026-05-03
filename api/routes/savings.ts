@@ -242,4 +242,151 @@ router.get("/statement/:memberId", async (req, res) => {
   }
 });
 
+// GET /api/savings/:id/last-transactions - মেম্বারের লাস্ট ৫ ট্রানজেকশন
+router.get("/:id/last-transactions", async (req, res) => {
+  const { id } = req.params;
+  try {
+    const txs = await prisma.savingsTransaction.findMany({
+      where: { savingsAccountId: id },
+      orderBy: { createdAt: "desc" },
+      take: 5,
+    });
+    res.json(txs);
+  } catch (err) {
+    res.status(500).json({ message: "Error fetching recent transactions" });
+  }
+});
+
+// মাসের নাম → DB কলাম ম্যাপিং (Helper for Update/Delete)
+const monthCols: Record<number, string> = {
+  1: "jan", 2: "feb", 3: "mar", 4: "apr",
+  5: "may", 6: "jun", 7: "jul", 8: "aug",
+  9: "sep", 10: "oct", 11: "nov", 12: "dec",
+};
+
+// PUT /api/savings/transactions/:id - ট্রানজেকশন আপডেট
+router.put("/transactions/:id", async (req, res) => {
+  const { id } = req.params;
+  const { amount, transactionDate, depositMonth, voucherNo, remarks } = req.body;
+  const newAmount = parseFloat(amount);
+
+  try {
+    const result = await prisma.$transaction(async (tx) => {
+      // ১. পুরাতন ট্রানজেকশন ডাটা খুঁজে নাও
+      const oldTx = await tx.savingsTransaction.findUnique({
+        where: { id },
+        include: { savingsAccount: true }
+      });
+      if (!oldTx) throw new Error("Transaction not found");
+
+      const diff = newAmount - oldTx.amount;
+
+      // ২. SavingsAccount ব্যালেন্স আপডেট
+      await tx.savingsAccount.update({
+        where: { id: oldTx.savingsAccountId },
+        data: { balance: { increment: diff } }
+      });
+
+      // ৩. ভাউচার আপডেট (voucherNo দিয়ে খুঁজে)
+      if (oldTx.voucherNo) {
+        await tx.voucher.updateMany({
+          where: { voucherNo: oldTx.voucherNo },
+          data: {
+            amount: newAmount,
+            date: transactionDate ? new Date(transactionDate) : oldTx.transactionDate,
+            description: remarks || undefined
+          }
+        });
+      }
+
+      // ৪. MonthlySavingsSummary আপডেট
+      // পুরাতন মাস থেকে বিয়োগ
+      if (oldTx.depositMonth) {
+        const [oY, oM] = oldTx.depositMonth.split("-").map(Number);
+        const oCol = monthCols[oM];
+        if (oCol) {
+          await (tx as any).monthlySavingsSummary.update({
+            where: { memberId_year: { memberId: oldTx.savingsAccount.memberId, year: oY } },
+            data: { [oCol]: { decrement: oldTx.amount } }
+          });
+        }
+      }
+      // নতুন মাসে যোগ
+      if (depositMonth) {
+        const [nY, nM] = depositMonth.split("-").map(Number);
+        const nCol = monthCols[nM];
+        if (nCol) {
+          await (tx as any).monthlySavingsSummary.upsert({
+            where: { memberId_year: { memberId: oldTx.savingsAccount.memberId, year: nY } },
+            update: { [nCol]: { increment: newAmount } },
+            create: { memberId: oldTx.savingsAccount.memberId, year: nY, [nCol]: newAmount }
+          });
+        }
+      }
+
+      // ৫. মেইন ট্রানজেকশন আপডেট
+      const updatedTx = await tx.savingsTransaction.update({
+        where: { id },
+        data: {
+          amount: newAmount,
+          transactionDate: transactionDate ? new Date(transactionDate) : undefined,
+          depositMonth,
+          voucherNo,
+          remarks
+        }
+      });
+
+      return updatedTx;
+    });
+
+    res.json(result);
+  } catch (error: any) {
+    console.error("Update error:", error);
+    res.status(500).json({ message: error?.message || "Error updating transaction" });
+  }
+});
+
+// DELETE /api/savings/transactions/:id - ট্রানজেকশন ডিলেট
+router.delete("/transactions/:id", async (req, res) => {
+  const { id } = req.params;
+  try {
+    await prisma.$transaction(async (tx) => {
+      const oldTx = await tx.savingsTransaction.findUnique({
+        where: { id },
+        include: { savingsAccount: true }
+      });
+      if (!oldTx) throw new Error("Transaction not found");
+
+      // ১. ব্যালেন্স কমাও
+      await tx.savingsAccount.update({
+        where: { id: oldTx.savingsAccountId },
+        data: { balance: { decrement: oldTx.amount } }
+      });
+
+      // ২. ভাউচার ডিলেট
+      if (oldTx.voucherNo) {
+        await tx.voucher.deleteMany({ where: { voucherNo: oldTx.voucherNo } });
+      }
+
+      // ৩. মান্থলি সামারি কমাও
+      if (oldTx.depositMonth) {
+        const [y, m] = oldTx.depositMonth.split("-").map(Number);
+        const col = monthCols[m];
+        if (col) {
+          await (tx as any).monthlySavingsSummary.update({
+            where: { memberId_year: { memberId: oldTx.savingsAccount.memberId, year: y } },
+            data: { [col]: { decrement: oldTx.amount } }
+          });
+        }
+      }
+
+      // ৪. ট্রানজেকশন ডিলেট
+      await tx.savingsTransaction.delete({ where: { id } });
+    });
+    res.json({ message: "Transaction deleted successfully" });
+  } catch (error: any) {
+    res.status(500).json({ message: error?.message || "Error deleting transaction" });
+  }
+});
+
 export default router;
