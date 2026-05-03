@@ -21,6 +21,27 @@ router.get("/", async (req, res) => {
   }
 });
 
+// Get all savings transactions (for Accounts/ledger page)
+router.get("/transactions", async (req, res) => {
+  try {
+    const transactions = await prisma.savingsTransaction.findMany({
+      orderBy: { transactionDate: "desc" },
+      include: {
+        savingsAccount: {
+          select: {
+            accountNo: true,
+            type: true,
+            member: { select: { name: true, memberId: true } },
+          },
+        },
+      },
+    });
+    res.json(transactions);
+  } catch (error) {
+    res.status(500).json({ message: "Server error fetching transactions" });
+  }
+});
+
 // Create new savings account
 router.post("/", async (req, res) => {
   const { memberId, type, interestRate } = req.body;
@@ -51,7 +72,7 @@ router.post("/", async (req, res) => {
 // Deposit to savings account
 router.post("/:id/deposit", async (req, res) => {
   const { id } = req.params;
-  const { amount, reference } = req.body;
+  const { amount, transactionDate, depositMonth, voucherNo, remarks } = req.body;
   const numAmount = parseFloat(amount);
 
   if (isNaN(numAmount) || numAmount <= 0) {
@@ -60,13 +81,16 @@ router.post("/:id/deposit", async (req, res) => {
 
   try {
     const transaction = await prisma.$transaction(async (tx) => {
-      // Create transaction record
+      // Create transaction record with all fields
       const txRecord = await tx.savingsTransaction.create({
         data: {
           savingsAccountId: id,
           type: "DEPOSIT",
           amount: numAmount,
-          reference,
+          transactionDate: transactionDate ? new Date(transactionDate) : new Date(),
+          depositMonth: depositMonth || null,
+          voucherNo: voucherNo || null,
+          remarks: remarks || null,
         },
       });
 
@@ -82,20 +106,24 @@ router.post("/:id/deposit", async (req, res) => {
       const voucherCount = await tx.voucher.count();
       await tx.voucher.create({
         data: {
-          voucherNo: `V-${String(voucherCount + 1).padStart(5, '0')}`,
+          voucherNo: voucherNo || `V-${String(voucherCount + 1).padStart(5, '0')}`,
           type: "INCOME",
           category: "Savings Deposit",
           amount: numAmount,
-          description: `Deposit to savings account ${account.accountNo}`,
-        }
+          description: remarks
+            ? `Deposit to ${account.accountNo} | ${depositMonth || ""} | ${remarks}`
+            : `Deposit to savings account ${account.accountNo}`,
+          date: transactionDate ? new Date(transactionDate) : new Date(),
+        },
       });
 
       return { txRecord, account };
     });
 
     res.json(transaction);
-  } catch (error) {
-    res.status(500).json({ message: "Server error during deposit" });
+  } catch (error: any) {
+    console.error("Deposit error:", error);
+    res.status(500).json({ message: error?.message || "Server error during deposit" });
   }
 });
 
