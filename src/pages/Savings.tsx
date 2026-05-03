@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import axios from "axios";
 import { useAuth } from "../context/AuthContext";
-import { Plus, Search, DollarSign, ArrowLeft, ChartBarDecreasing } from "lucide-react";
+import { Plus, Search, DollarSign, ChartBarDecreasing, X } from "lucide-react";
 
 export default function Savings() {
   const [accounts, setAccounts] = useState([]);
@@ -11,6 +11,10 @@ export default function Savings() {
   const [showDepositModal, setShowDepositModal] = useState(false);
   const [selectedAccountId, setSelectedAccountId] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
+  const [showStatusModal, setShowStatusModal] = useState(false);
+  const [selectedMemberForStatus, setSelectedMemberForStatus] = useState<any>(null);
+  const [monthlySummary, setMonthlySummary] = useState<any[]>([]);
+  const [loadingSummary, setLoadingSummary] = useState(false);
   const { token } = useAuth();
 
   const [formData, setFormData] = useState({
@@ -72,6 +76,24 @@ export default function Savings() {
       alert("সফলভাবে জমা হয়েছে!");
     } catch (error: any) {
       alert(error.response?.data?.message || "Error during deposit");
+    }
+  };
+
+  const fetchMonthlySummary = async (member: any) => {
+    setSelectedMemberForStatus(member);
+    setShowStatusModal(true);
+    setLoadingSummary(true);
+    setMonthlySummary([]);
+    try {
+      const res = await axios.get(
+        `http://localhost:5000/api/savings/monthly-summary/${member.id}`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      setMonthlySummary(res.data);
+    } catch (err) {
+      console.error("Monthly summary error", err);
+    } finally {
+      setLoadingSummary(false);
     }
   };
 
@@ -155,6 +177,7 @@ export default function Savings() {
                   </td>
                   <td className=" py-2 text-right space-x-2">
                     <button id="statusBtn"
+                      onClick={() => fetchMonthlySummary(acc.member)}
                       className="inline-flex items-center gap-1 text-sm bg-orange-50 text-orange-700 hover:bg-orange-100 px-3 py-1.5 rounded-lg transition"
                     >
                       <ChartBarDecreasing size={14} />
@@ -305,6 +328,111 @@ export default function Savings() {
                 >জমা করুন</button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Monthly Summary Status Modal */}
+      {showStatusModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-5xl max-h-[90vh] overflow-hidden flex flex-col">
+            {/* হেডার */}
+            <div className="p-5 border-b flex justify-between items-center bg-gradient-to-r from-orange-600 to-amber-500">
+              <div>
+                <h3 className="text-lg font-bold text-white">মাসওয়াইজ সঞ্চয় সারসংক্ষেপ</h3>
+                {selectedMemberForStatus && (
+                  <p className="text-orange-100 text-sm mt-0.5">
+                    {selectedMemberForStatus.name} &middot; {selectedMemberForStatus.memberId}
+                  </p>
+                )}
+              </div>
+              <button
+                onClick={() => setShowStatusModal(false)}
+                className="text-white/70 hover:text-white transition"
+              >
+                <X size={22} />
+              </button>
+            </div>
+
+            {/* কন্টেন্ট */}
+            <div className="overflow-auto flex-1 p-4">
+              {loadingSummary ? (
+                <div className="flex items-center justify-center py-16 text-slate-400">
+                  <div className="animate-spin w-7 h-7 border-4 border-orange-400 border-t-transparent rounded-full mr-3" />
+                  লোড হচ্ছে...
+                </div>
+              ) : monthlySummary.length === 0 ? (
+                <div className="text-center py-16 text-slate-400">
+                  <ChartBarDecreasing size={40} className="mx-auto mb-3 text-slate-300" />
+                  <p>এই সদস্যের কোনো মাসওয়াইজ ডাটা পাওয়া যায়নি</p>
+                  <p className="text-sm mt-1">জমা দিতে ডিপোজিট মাস সিলেক্ট করতে হবে</p>
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm border-collapse">
+                    <thead>
+                      <tr className="bg-orange-50">
+                        <th className="px-3 py-3 border border-orange-200 font-semibold text-orange-800 text-left whitespace-nowrap">বছর</th>
+                        {["জানু", "ফেব্রু", "মার্চ", "এপ্রিল", "মে", "জুন", "জুলাই", "আগস্ট", "সেপ্টে", "অক্টো", "নভে", "ডিসে"].map((m) => (
+                          <th key={m} className="px-3 py-3 border border-orange-200 font-semibold text-orange-800 text-right whitespace-nowrap">{m}</th>
+                        ))}
+                        <th className="px-3 py-3 border border-orange-200 font-semibold text-orange-800 text-right bg-orange-100">মোট</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {monthlySummary.map((row: any, idx: number) => {
+                        const months = [row.jan, row.feb, row.mar, row.apr, row.may, row.jun, row.jul, row.aug, row.sep, row.oct, row.nov, row.dec];
+                        const total = months.reduce((s: number, v: number) => s + (v || 0), 0);
+                        return (
+                          <tr key={row.id} className={idx % 2 === 0 ? "bg-white hover:bg-orange-50" : "bg-slate-50 hover:bg-orange-50"}>
+                            <td className="px-3 py-3 border border-slate-200 font-bold text-slate-700">{row.year}</td>
+                            {months.map((val: number, i: number) => (
+                              <td key={i} className={`px-3 py-3 border border-slate-200 text-right ${val > 0 ? "text-green-700 font-medium" : "text-slate-300"
+                                }`}>
+                                {val > 0 ? `৳ ${val.toLocaleString()}` : "-"}
+                              </td>
+                            ))}
+                            <td className="px-3 py-3 border border-orange-200 text-right font-bold text-orange-700 bg-orange-50">
+                              ৳ {total.toLocaleString()}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                    {/* কলাম মোট */}
+                    <tfoot>
+                      <tr className="bg-orange-100 font-bold">
+                        <td className="px-3 py-3 border border-orange-300 text-orange-800">সর্বমোট</td>
+                        {["jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"].map((col) => {
+                          const colTotal = monthlySummary.reduce((s: number, r: any) => s + (r[col] || 0), 0);
+                          return (
+                            <td key={col} className={`px-3 py-3 border border-orange-300 text-right ${colTotal > 0 ? "text-green-800" : "text-slate-400"
+                              }`}>
+                              {colTotal > 0 ? `৳ ${colTotal.toLocaleString()}` : "-"}
+                            </td>
+                          );
+                        })}
+                        <td className="px-3 py-3 border border-orange-300 text-right text-orange-900 bg-orange-200">
+                          ৳ {monthlySummary.reduce((s: number, r: any) => {
+                            return s + ["jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"]
+                              .reduce((ms, col) => ms + (r[col] || 0), 0);
+                          }, 0).toLocaleString()}
+                        </td>
+                      </tr>
+                    </tfoot>
+                  </table>
+                </div>
+              )}
+            </div>
+
+            <div className="p-4 border-t bg-slate-50 flex justify-end">
+              <button
+                onClick={() => setShowStatusModal(false)}
+                className="px-5 py-2 bg-slate-700 text-white rounded-lg hover:bg-slate-800 transition text-sm font-medium"
+              >
+                বন্ধ করুন
+              </button>
+            </div>
           </div>
         </div>
       )}

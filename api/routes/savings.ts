@@ -11,7 +11,7 @@ router.get("/", async (req, res) => {
   try {
     const accounts = await prisma.savingsAccount.findMany({
       include: {
-        member: { select: { name: true, memberId: true } },
+        member: { select: { id: true, name: true, memberId: true } },
       },
       orderBy: { openDate: "desc" },
     });
@@ -59,7 +59,7 @@ router.post("/", async (req, res) => {
         interestRate: parseFloat(interestRate) || 0,
       },
       include: {
-        member: { select: { name: true, memberId: true } }
+        member: { select: { id: true, name: true, memberId: true } }
       }
     });
 
@@ -185,7 +185,7 @@ router.get("/statement/:memberId", async (req, res) => {
     const accounts = await prisma.savingsAccount.findMany({
       where: { memberId },
       include: {
-        member: { select: { name: true, memberId: true, phone: true, address: true } },
+        member: { select: { id: true, name: true, memberId: true, phone: true, address: true } },
         transactions: {
           where: {
             ...(from || to
