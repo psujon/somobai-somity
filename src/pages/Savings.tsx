@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import axios from "axios";
 import { useAuth } from "../context/AuthContext";
 import { Plus, Search, DollarSign, ChartBarDecreasing, X } from "lucide-react";
+import { toast } from "react-toastify";
 
 export default function Savings() {
   const [accounts, setAccounts] = useState([]);
@@ -59,8 +60,9 @@ export default function Savings() {
       setShowModal(false);
       fetchData();
       setFormData({ memberId: "", type: "GENERAL", interestRate: "0" });
+      toast.success("সঞ্চয় হিসাব সফলভাবে তৈরি হয়েছে");
     } catch (error: any) {
-      alert(error.response?.data?.message || "Error creating account");
+      toast.error(error.response?.data?.message || "হিসাব তৈরি করতে সমস্যা হয়েছে");
     }
   };
 
@@ -73,9 +75,9 @@ export default function Savings() {
       setShowDepositModal(false);
       fetchData();
       setDepositData({ ...emptyDeposit, transactionDate: new Date().toISOString().split("T")[0] });
-      alert("সফলভাবে জমা হয়েছে!");
+      toast.success("সফলভাবে জমা হয়েছে!");
     } catch (error: any) {
-      alert(error.response?.data?.message || "Error during deposit");
+      toast.error(error.response?.data?.message || "জমা দিতে সমস্যা হয়েছে");
     }
   };
 

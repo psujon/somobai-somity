@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import axios from "axios";
 import { useAuth } from "../context/AuthContext";
 import { Plus, Search } from "lucide-react";
+import { toast } from "react-toastify";
 
 export default function Accounts() {
   const [transactions, setTransactions] = useState([]);
@@ -40,8 +41,9 @@ export default function Accounts() {
       setShowModal(false);
       fetchTransactions();
       setFormData({ type: "INCOME", category: "General", amount: "", description: "" });
+      toast.success("ভাউচার সফলভাবে তৈরি হয়েছে");
     } catch (error: any) {
-      alert(error.response?.data?.message || "Error creating voucher");
+      toast.error(error.response?.data?.message || "ভাউচার তৈরি করতে সমস্যা হয়েছে");
     }
   };
 

@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import axios from "axios";
 import { useAuth } from "../context/AuthContext";
 import { Plus, Search, Edit, Trash2 } from "lucide-react";
+import { toast } from 'react-toastify';
 
 export default function Members() {
   const [members, setMembers] = useState<any[]>([]);
@@ -130,8 +131,9 @@ export default function Members() {
       setFormData(defaultForm);
       setPhotoFile(null);
       setEditingMember(null);
+      toast.success(editingMember ? "সদস্যের তথ্য আপডেট হয়েছে" : "নতুন সদস্য সফলভাবে তৈরি হয়েছে");
     } catch (error: any) {
-      alert(error.response?.data?.message || "Error saving member");
+      toast.error(error.response?.data?.message || "সদস্য সেভ করতে সমস্যা হয়েছে");
     }
   };
 
@@ -142,8 +144,9 @@ export default function Members() {
         headers: { Authorization: `Bearer ${token}` }
       });
       fetchMembers();
+      toast.success("সদস্য সফলভাবে বাতিল করা হয়েছে");
     } catch (error: any) {
-      alert(error.response?.data?.message || "Error cancelling member");
+      toast.error(error.response?.data?.message || "সদস্য বাতিল করতে সমস্যা হয়েছে");
     }
   };
 
