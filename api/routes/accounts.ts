@@ -10,6 +10,15 @@ router.use(authenticateToken);
 router.get("/", async (req, res) => {
   try {
     const vouchers = await prisma.voucher.findMany({
+      include: {
+        member: { select: { name: true, memberId: true } },
+        savingsAccount: {
+          include: { member: { select: { name: true, memberId: true } } }
+        },
+        loan: {
+          include: { member: { select: { name: true, memberId: true } } }
+        }
+      },
       orderBy: { date: "desc" },
     });
     res.json(vouchers);
@@ -20,7 +29,7 @@ router.get("/", async (req, res) => {
 
 // Create a voucher
 router.post("/", async (req, res) => {
-  const { type, category, amount, description } = req.body;
+  const { type, category, amount, description, memberId, savingsAccountId, loanId } = req.body;
   const numAmount = parseFloat(amount);
 
   if (!type || !category || isNaN(numAmount) || numAmount <= 0) {
@@ -38,7 +47,13 @@ router.post("/", async (req, res) => {
         category,
         amount: numAmount,
         description,
+        memberId: memberId || null,
+        savingsAccountId: savingsAccountId || null,
+        loanId: loanId || null,
       },
+      include: {
+        member: { select: { name: true, memberId: true } },
+      }
     });
 
     res.status(201).json(voucher);

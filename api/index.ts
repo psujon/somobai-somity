@@ -12,6 +12,7 @@ import positionRoutes from "./routes/positions.js";
 import memberTypeRoutes from "./routes/memberTypes.js";
 import companyProfileRoutes from "./routes/companyProfile.js";
 import dashboardRoutes from "./routes/dashboard.js";
+import accountCategoryRoutes from "./routes/accountCategories.js";
 
 dotenv.config();
 
@@ -32,6 +33,7 @@ app.use("/api/positions", positionRoutes);
 app.use("/api/member-types", memberTypeRoutes);
 app.use("/api/company-profile", companyProfileRoutes);
 app.use("/api/dashboard", dashboardRoutes);
+app.use("/api/account-categories", accountCategoryRoutes);
 
 app.get("/api/health", (req, res) => {
   res.json({ status: "ok", message: "Cooperative API is running" });

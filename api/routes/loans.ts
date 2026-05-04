@@ -78,6 +78,8 @@ router.post("/:id/approve", async (req, res) => {
           type: "EXPENSE",
           category: "Loan Disbursement",
           amount: loan.amount,
+          memberId: loan.memberId,
+          loanId: id,
           description: `Disbursed loan ${loan.loanNo}`,
         }
       });
@@ -130,6 +132,8 @@ router.post("/:id/installment", async (req, res) => {
           type: "INCOME",
           category: "Loan Installment",
           amount: numAmount,
+          memberId: loan.memberId,
+          loanId: id,
           description: `Collected installment for loan ${loan.loanNo}`,
         }
       });

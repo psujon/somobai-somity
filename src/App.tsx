@@ -13,6 +13,7 @@ import MemberTypes from "./pages/Settings/MemberTypes";
 import MemberPositions from "./pages/Settings/MemberPositions";
 import Users from "./pages/Settings/Users";
 import DatabaseBackup from "./pages/Settings/DatabaseBackup";
+import AccountCategories from "./pages/Settings/AccountCategories";
 import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 
@@ -46,6 +47,7 @@ function App() {
             <Route path="member-positions" element={<MemberPositions />} />
             <Route path="users" element={<Users />} />
             <Route path="backup" element={<DatabaseBackup />} />
+            <Route path="account-categories" element={<AccountCategories />} />
             <Route index element={<Navigate to="profile" replace />} />
           </Route>
         </Route>

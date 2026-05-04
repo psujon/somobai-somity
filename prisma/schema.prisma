@@ -7,161 +7,18 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model User {
-  id        String   @id @default(cuid())
-  name      String
-  email     String   @unique
-  password  String
-  role      String   @default("STAFF") // ADMIN, STAFF
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  activities ActivityLog[]
-}
-
 model ActivityLog {
-  id        String   @id @default(cuid())
+  id        String   @id
   userId    String
-  user      User     @relation(fields: [userId], references: [id])
-  type      String   @default("LOGIN") // LOGIN, LOGOUT
+  type      String   @default("LOGIN")
   loginAt   DateTime @default(now())
-  loginTime String?  // BD Time string
+  loginTime String?
   ipAddress String?
   userAgent String?
-}
+  user      User     @relation(fields: [userId], references: [id], map: "ActivityLog_userId_fkey")
 
-model Member {
-  id           String   @id @default(cuid())
-  memberId     String   @unique // custom readable ID like M-001
-  name         String
-  phone        String   @unique
-  email        String?
-  nid          String?  @unique
-  address      String?
-  photo        String?
-  type         String   @default("General") // General Member, Committee Member
-  position     String   @default("Member") // President, Member, etc.
-  status       String   @default("ACTIVE") // ACTIVE, SUSPENDED, CANCELLED
-  joinDate     DateTime @default(now())
-  
-  savingsAccounts SavingsAccount[]
-  loans          Loan[]
-  monthlySavings MonthlySavingsSummary[]
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
-}
-
-// মাসওয়াইজ সঞ্চয় সারসংক্ষেপ (সদস্য × বছর)
-model MonthlySavingsSummary {
-  id        String  @id @default(cuid())
-  memberId  String
-  member    Member  @relation(fields: [memberId], references: [id])
-  year      Int     // যেমন: 2026
-
-  jan  Float @default(0)  // জানুয়ারি
-  feb  Float @default(0)  // ফেব্রুয়ারি
-  mar  Float @default(0)  // মার্চ
-  apr  Float @default(0)  // এপ্রিল
-  may  Float @default(0)  // মে
-  jun  Float @default(0)  // জুন
-  jul  Float @default(0)  // জুলাই
-  aug  Float @default(0)  // আগস্ট
-  sep  Float @default(0)  // সেপ্টেম্বর
-  oct  Float @default(0)  // অক্টোবর
-  nov  Float @default(0)  // নভেম্বর
-  dec  Float @default(0)  // ডিসেম্বর
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@unique([memberId, year])  // একজন সদস্যের একটি বছরে একটিই রেকর্ড
-}
-
-model SavingsAccount {
-  id           String   @id @default(cuid())
-  accountNo    String   @unique
-  memberId     String
-  member       Member   @relation(fields: [memberId], references: [id])
-  type         String   // GENERAL, DPS, FDR
-  balance      Float    @default(0)
-  interestRate Float    @default(0)
-  status       String   @default("ACTIVE")
-  openDate     DateTime @default(now())
-  
-  transactions SavingsTransaction[]
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
-}
-
-model SavingsTransaction {
-  id               String         @id @default(cuid())
-  savingsAccountId String
-  savingsAccount   SavingsAccount @relation(fields: [savingsAccountId], references: [id])
-  type             String         // DEPOSIT, WITHDRAWAL, INTEREST
-  amount           Float
-  date             DateTime       @default(now())
-  transactionDate  DateTime?      // ট্রানজেকশন তারিখ (ফর্ম থেকে)
-  depositMonth     String?        // ডিপোজিট মাস (YYYY-MM)
-  voucherNo        String?        // ভাউচার নম্বর
-  reference        String?        // পুরানো রেফারেন্স (backward compat)
-  remarks          String?        // রিমার্কস
-  createdAt        DateTime       @default(now())
-  updatedAt        DateTime       @updatedAt
-}
-
-model Loan {
-  id            String   @id @default(cuid())
-  loanNo        String   @unique
-  memberId      String
-  member        Member   @relation(fields: [memberId], references: [id])
-  amount        Float
-  interestRate  Float
-  totalPayable  Float
-  totalPaid     Float    @default(0)
-  status        String   @default("PENDING") // PENDING, APPROVED, ACTIVE, COMPLETED, DEFAULTED
-  issueDate     DateTime?
-  endDate       DateTime?
-  
-  installments  LoanInstallment[]
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-}
-
-model LoanInstallment {
-  id        String   @id @default(cuid())
-  loanId    String
-  loan      Loan     @relation(fields: [loanId], references: [id])
-  amount    Float
-  date      DateTime @default(now())
-  status    String   @default("PAID") // PAID, LATE
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-}
-
-model Voucher {
-  id          String   @id @default(cuid())
-  voucherNo   String   @unique
-  type        String   // INCOME, EXPENSE, INVESTMENT
-  category    String   // Salary, Rent, Office Cost, Profit, etc.
-  amount      Float
-  description String?
-  date        DateTime @default(now())
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-}
-
-model Position {
-  id        String   @id @default(cuid())
-  name      String   @unique
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-}
-
-model MemberType {
-  id        String   @id @default(cuid())
-  name      String   @unique
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  @@index([userId], map: "ActivityLog_userId_fkey")
+  @@map("activitylog")
 }
 
 model CompanyProfile {
@@ -182,5 +39,192 @@ model CompanyProfile {
   bankBranch       String?
   address          String?
   createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
+  updatedAt        DateTime
+
+  @@map("companyprofile")
+}
+
+model Loan {
+  id              String            @id
+  loanNo          String            @unique(map: "Loan_loanNo_key")
+  memberId        String
+  amount          Float
+  interestRate    Float
+  totalPayable    Float
+  totalPaid       Float             @default(0)
+  status          String            @default("PENDING")
+  issueDate       DateTime?
+  endDate         DateTime?
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime
+  member          Member            @relation(fields: [memberId], references: [id], map: "Loan_memberId_fkey")
+  loanInstallment LoanInstallment[]
+  voucher         Voucher[]
+
+  @@index([memberId], map: "Loan_memberId_fkey")
+  @@map("loan")
+}
+
+model LoanInstallment {
+  id        String   @id
+  loanId    String
+  amount    Float
+  date      DateTime @default(now())
+  status    String   @default("PAID")
+  createdAt DateTime @default(now())
+  updatedAt DateTime
+  loan      Loan     @relation(fields: [loanId], references: [id], map: "LoanInstallment_loanId_fkey")
+
+  @@index([loanId], map: "LoanInstallment_loanId_fkey")
+  @@map("loaninstallment")
+}
+
+model Member {
+  id                    String                  @id
+  memberId              String                  @unique(map: "Member_memberId_key")
+  name                  String
+  phone                 String                  @unique(map: "Member_phone_key")
+  email                 String?
+  nid                   String?                 @unique(map: "Member_nid_key")
+  address               String?
+  type                  String                  @default("General")
+  position              String                  @default("Member")
+  status                String                  @default("ACTIVE")
+  joinDate              DateTime                @default(now())
+  createdAt             DateTime                @default(now())
+  updatedAt             DateTime
+  photo                 String?
+  loan                  Loan[]
+  monthlySavingsSummary MonthlySavingsSummary[]
+  savingsAccount       SavingsAccount[]
+  voucher               Voucher[]
+
+  @@map("member")
+}
+
+model MemberType {
+  id        String   @id
+  name      String   @unique(map: "MemberType_name_key")
+  createdAt DateTime @default(now())
+  updatedAt DateTime
+
+  @@map("membertype")
+}
+
+model MonthlySavingsSummary {
+  id        String   @id
+  memberId  String
+  year      Int
+  jan       Float    @default(0)
+  feb       Float    @default(0)
+  mar       Float    @default(0)
+  apr       Float    @default(0)
+  may       Float    @default(0)
+  jun       Float    @default(0)
+  jul       Float    @default(0)
+  aug       Float    @default(0)
+  sep       Float    @default(0)
+  oct       Float    @default(0)
+  nov       Float    @default(0)
+  dec       Float    @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime
+  member    Member   @relation(fields: [memberId], references: [id], map: "MonthlySavingsSummary_memberId_fkey")
+
+  @@unique([memberId, year], map: "MonthlySavingsSummary_memberId_year_key")
+  @@map("monthlysavingssummary")
+}
+
+model Position {
+  id        String   @id
+  name      String   @unique(map: "Position_name_key")
+  createdAt DateTime @default(now())
+  updatedAt DateTime
+
+  @@map("position")
+}
+
+model SavingsAccount {
+  id                 String               @id
+  accountNo          String               @unique(map: "SavingsAccount_accountNo_key")
+  memberId           String
+  type               String
+  balance            Float                @default(0)
+  interestRate       Float                @default(0)
+  status             String               @default("ACTIVE")
+  openDate           DateTime             @default(now())
+  createdAt          DateTime             @default(now())
+  updatedAt          DateTime
+  member             Member               @relation(fields: [memberId], references: [id], map: "SavingsAccount_memberId_fkey")
+  transactions       SavingsTransaction[]
+  voucher           Voucher[]
+
+  @@index([memberId], map: "SavingsAccount_memberId_fkey")
+  @@map("savingsaccount")
+}
+
+model SavingsTransaction {
+  id               String         @id
+  savingsAccountId String
+  type             String
+  amount           Float
+  date             DateTime       @default(now())
+  reference        String?
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime
+  depositMonth     String?
+  remarks          String?
+  transactionDate  DateTime?
+  voucherNo        String?
+  savingsAccount   SavingsAccount @relation(fields: [savingsAccountId], references: [id], map: "SavingsTransaction_savingsAccountId_fkey")
+
+  @@index([savingsAccountId], map: "SavingsTransaction_savingsAccountId_fkey")
+  @@map("savingstransaction")
+}
+
+model User {
+  id          String        @id
+  name        String
+  email       String        @unique(map: "User_email_key")
+  password    String
+  role        String        @default("STAFF")
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime
+  activityLog ActivityLog[]
+
+  @@map("user")
+}
+
+model Voucher {
+  id               String          @id
+  voucherNo        String          @unique(map: "Voucher_voucherNo_key")
+  type             String
+  category         String
+  amount           Float
+  description      String?
+  date             DateTime        @default(now())
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime
+  loanId           String?
+  memberId         String?
+  savingsAccountId String?
+  depositMonth     String?
+  loan             Loan?           @relation(fields: [loanId], references: [id], map: "Voucher_loanId_fkey")
+  member           Member?         @relation(fields: [memberId], references: [id], map: "Voucher_memberId_fkey")
+  savingsAccount   SavingsAccount? @relation(fields: [savingsAccountId], references: [id], map: "Voucher_savingsAccountId_fkey")
+
+  @@index([loanId], map: "Voucher_loanId_fkey")
+  @@index([memberId], map: "Voucher_memberId_fkey")
+  @@index([savingsAccountId], map: "Voucher_savingsAccountId_fkey")
+  @@map("voucher")
+}
+
+model AccountCategory {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  type      String   @default("INCOME") // INCOME, EXPENSE, INVESTMENT
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("accountcategory")
 }

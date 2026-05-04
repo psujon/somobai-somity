@@ -116,6 +116,9 @@ router.post("/:id/deposit", async (req, res) => {
           type: "INCOME",
           category: "Savings Deposit",
           amount: numAmount,
+          memberId: account.memberId,
+          savingsAccountId: id,
+          depositMonth: depositMonth || null,
           description: remarks
             ? `Deposit to ${account.accountNo} | ${depositMonth || ""} | ${remarks}`
             : `Deposit to savings account ${account.accountNo}`,
@@ -293,8 +296,8 @@ router.put("/transactions/:id", async (req, res) => {
           where: { voucherNo: oldTx.voucherNo },
           data: {
             amount: newAmount,
-            date: transactionDate ? new Date(transactionDate) : oldTx.transactionDate,
-            description: remarks || undefined
+            date: transactionDate ? new Date(transactionDate) : (oldTx.transactionDate || new Date()),
+            description: remarks ?? undefined
           }
         });
       }
