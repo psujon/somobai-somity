@@ -8,7 +8,7 @@ datasource db {
 }
 
 model ActivityLog {
-  id        String   @id
+  id        String   @id @default(cuid())
   userId    String
   type      String   @default("LOGIN")
   loginAt   DateTime @default(now())
@@ -39,13 +39,13 @@ model CompanyProfile {
   bankBranch       String?
   address          String?
   createdAt        DateTime @default(now())
-  updatedAt        DateTime
+  updatedAt        DateTime @updatedAt
 
   @@map("companyprofile")
 }
 
 model Loan {
-  id              String            @id
+  id              String            @id @default(cuid())
   loanNo          String            @unique(map: "Loan_loanNo_key")
   memberId        String
   amount          Float
@@ -56,7 +56,7 @@ model Loan {
   issueDate       DateTime?
   endDate         DateTime?
   createdAt       DateTime          @default(now())
-  updatedAt       DateTime
+  updatedAt       DateTime          @updatedAt
   member          Member            @relation(fields: [memberId], references: [id], map: "Loan_memberId_fkey")
   loanInstallment LoanInstallment[]
   voucher         Voucher[]
@@ -66,13 +66,13 @@ model Loan {
 }
 
 model LoanInstallment {
-  id        String   @id
+  id        String   @id @default(cuid())
   loanId    String
   amount    Float
   date      DateTime @default(now())
   status    String   @default("PAID")
   createdAt DateTime @default(now())
-  updatedAt DateTime
+  updatedAt DateTime @updatedAt
   loan      Loan     @relation(fields: [loanId], references: [id], map: "LoanInstallment_loanId_fkey")
 
   @@index([loanId], map: "LoanInstallment_loanId_fkey")
@@ -80,7 +80,7 @@ model LoanInstallment {
 }
 
 model Member {
-  id                    String                  @id
+  id                    String                  @id @default(cuid())
   memberId              String                  @unique(map: "Member_memberId_key")
   name                  String
   phone                 String                  @unique(map: "Member_phone_key")
@@ -92,7 +92,7 @@ model Member {
   status                String                  @default("ACTIVE")
   joinDate              DateTime                @default(now())
   createdAt             DateTime                @default(now())
-  updatedAt             DateTime
+  updatedAt             DateTime                @updatedAt
   photo                 String?
   loan                  Loan[]
   monthlySavingsSummary MonthlySavingsSummary[]
@@ -103,16 +103,16 @@ model Member {
 }
 
 model MemberType {
-  id        String   @id
+  id        String   @id @default(cuid())
   name      String   @unique(map: "MemberType_name_key")
   createdAt DateTime @default(now())
-  updatedAt DateTime
+  updatedAt DateTime @updatedAt
 
   @@map("membertype")
 }
 
 model MonthlySavingsSummary {
-  id        String   @id
+  id        String   @id @default(cuid())
   memberId  String
   year      Int
   jan       Float    @default(0)
@@ -128,7 +128,7 @@ model MonthlySavingsSummary {
   nov       Float    @default(0)
   dec       Float    @default(0)
   createdAt DateTime @default(now())
-  updatedAt DateTime
+  updatedAt DateTime @updatedAt
   member    Member   @relation(fields: [memberId], references: [id], map: "MonthlySavingsSummary_memberId_fkey")
 
   @@unique([memberId, year], map: "MonthlySavingsSummary_memberId_year_key")
@@ -136,16 +136,16 @@ model MonthlySavingsSummary {
 }
 
 model Position {
-  id        String   @id
+  id        String   @id @default(cuid())
   name      String   @unique(map: "Position_name_key")
   createdAt DateTime @default(now())
-  updatedAt DateTime
+  updatedAt DateTime @updatedAt
 
   @@map("position")
 }
 
 model SavingsAccount {
-  id                 String               @id
+  id                 String               @id @default(cuid())
   accountNo          String               @unique(map: "SavingsAccount_accountNo_key")
   memberId           String
   type               String
@@ -154,7 +154,7 @@ model SavingsAccount {
   status             String               @default("ACTIVE")
   openDate           DateTime             @default(now())
   createdAt          DateTime             @default(now())
-  updatedAt          DateTime
+  updatedAt          DateTime             @updatedAt
   member             Member               @relation(fields: [memberId], references: [id], map: "SavingsAccount_memberId_fkey")
   transactions       SavingsTransaction[]
   voucher           Voucher[]
@@ -164,14 +164,14 @@ model SavingsAccount {
 }
 
 model SavingsTransaction {
-  id               String         @id
+  id               String         @id @default(cuid())
   savingsAccountId String
   type             String
   amount           Float
   date             DateTime       @default(now())
   reference        String?
   createdAt        DateTime       @default(now())
-  updatedAt        DateTime
+  updatedAt        DateTime       @updatedAt
   depositMonth     String?
   remarks          String?
   transactionDate  DateTime?
@@ -183,20 +183,20 @@ model SavingsTransaction {
 }
 
 model User {
-  id          String        @id
+  id          String        @id @default(cuid())
   name        String
   email       String        @unique(map: "User_email_key")
   password    String
   role        String        @default("STAFF")
   createdAt   DateTime      @default(now())
-  updatedAt   DateTime
+  updatedAt   DateTime      @updatedAt
   activityLog ActivityLog[]
 
   @@map("user")
 }
 
 model Voucher {
-  id               String          @id
+  id               String          @id @default(cuid())
   voucherNo        String          @unique(map: "Voucher_voucherNo_key")
   type             String
   category         String
@@ -204,7 +204,7 @@ model Voucher {
   description      String?
   date             DateTime        @default(now())
   createdAt        DateTime        @default(now())
-  updatedAt        DateTime
+  updatedAt        DateTime        @updatedAt
   loanId           String?
   memberId         String?
   savingsAccountId String?
