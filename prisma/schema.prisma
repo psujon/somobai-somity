@@ -197,7 +197,7 @@ model User {
 
 model Voucher {
   id               String          @id @default(cuid())
-  voucherNo        String          @unique(map: "Voucher_voucherNo_key")
+  voucherNo        String
   type             String
   category         String
   amount           Float
@@ -221,7 +221,7 @@ model Voucher {
 
 model AccountCategory {
   id        String   @id @default(cuid())
-  name      String   @unique
+  name      String   @unique(map: "accountcategory_name_idx")
   type      String   @default("INCOME") // INCOME, EXPENSE, INVESTMENT
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
