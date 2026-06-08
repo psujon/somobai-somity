@@ -47,7 +47,6 @@ router.post("/", upload.single("photo"), async (req, res) => {
         memberId,
         name,
         phone,
-        // Convert empty strings to null for optional unique fields
         email: email && email.trim() !== '' ? email.trim() : null,
         nid: nid && nid.trim() !== '' ? nid.trim() : null,
         address: address || null,
@@ -55,7 +54,7 @@ router.post("/", upload.single("photo"), async (req, res) => {
         type,
         position,
         joinDate: joinDate ? new Date(joinDate) : undefined,
-      } as any, // Cast to any to bypass Prisma Client generation error during dev
+      } as any, 
     });
 
     res.status(201).json(member);
@@ -67,7 +66,7 @@ router.post("/", upload.single("photo"), async (req, res) => {
   }
 });
 
-// Update a member
+// Update  member
 router.put("/:id", upload.single("photo"), async (req, res) => {
   const { id } = req.params;
   const { name, phone, email, nid, address, type, position, joinDate } = req.body;
@@ -103,7 +102,7 @@ router.put("/:id", upload.single("photo"), async (req, res) => {
   }
 });
 
-// Delete (or change status)
+// Delete
 router.delete("/:id", async (req, res) => {
   const { id } = req.params;
   try {

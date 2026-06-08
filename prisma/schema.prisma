@@ -83,9 +83,9 @@ model Member {
   id                    String                  @id @default(cuid())
   memberId              String                  @unique(map: "Member_memberId_key")
   name                  String
-  phone                 String                  @unique(map: "Member_phone_key")
+  phone                 String                 
   email                 String?
-  nid                   String?                 @unique(map: "Member_nid_key")
+  nid                   String?
   address               String?
   type                  String                  @default("General")
   position              String                  @default("Member")
