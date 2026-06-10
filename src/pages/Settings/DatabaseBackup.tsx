@@ -28,7 +28,7 @@ export default function DatabaseBackup() {
     setLoading(true);
     setStatusMsg({ type: "", text: "" });
     try {
-      const res = await axios.post("http://localhost:5000/api/backup", {}, {
+      await axios.post("http://localhost:5000/api/backup", {}, {
         headers: { Authorization: `Bearer ${token}` }
       });
       setStatusMsg({ type: "success", text: "ডাটাবেজ সফলভাবে ব্যাকআপ নেওয়া হয়েছে!" });

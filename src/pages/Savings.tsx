@@ -17,13 +17,19 @@ export default function Savings() {
   const [monthlySummary, setMonthlySummary] = useState<any[]>([]);
   const [loadingSummary, setLoadingSummary] = useState(false);
 
-  // ——— ট্রানজেকশন এডিট স্টেট ———
   const [showEditModal, setShowEditModal] = useState(false);
   const [lastTransactions, setLastTransactions] = useState<any[]>([]);
   const [loadingTxs, setLoadingTxs] = useState(false);
   const [editingTxId, setEditingTxId] = useState<string | null>(null);
   const [editFormData, setEditFormData] = useState<any>(null);
   const [selectedAccForEdit, setSelectedAccForEdit] = useState<any>(null);
+  const [afterDepositData, setAfterDepositData] = useState<any>({
+    transactionDate: new Date().toISOString().split("T")[0],
+    depositMonth: new Date().toISOString().slice(0, 7),
+    voucherNo: "",
+    amount: "",
+    remarks: ""
+  });
 
   const { token } = useAuth();
 
@@ -33,7 +39,7 @@ export default function Savings() {
 
   const emptyDeposit = {
     transactionDate: new Date().toISOString().split("T")[0],
-    depositMonth: "",
+    depositMonth: new Date().toISOString().slice(0, 7),
     voucherNo: "",
     amount: "",
     remarks: ""
@@ -85,10 +91,21 @@ export default function Savings() {
       fetchData();
       setDepositData({ ...emptyDeposit, transactionDate: new Date().toISOString().split("T")[0] });
       toast.success("সফলভাবে জমা হয়েছে!");
+      setAfterDepositData({
+        transactionDate: depositData.transactionDate,
+        depositMonth: depositData.depositMonth,
+        voucherNo: depositData.voucherNo,
+        amount: depositData.amount,
+        remarks: depositData.remarks
+      });
     } catch (error: any) {
       toast.error(error.response?.data?.message || "জমা দিতে সমস্যা হয়েছে");
     }
   };
+
+  const handleLastDepositDataRetrieve = () => {
+    setDepositData(afterDepositData);
+  }
 
   const fetchMonthlySummary = async (member: any) => {
     setSelectedMemberForStatus(member);
@@ -108,7 +125,6 @@ export default function Savings() {
     }
   };
 
-  // লাস্ট ৫ ট্রানজেকশন ফেচ
   const fetchLastTransactions = async (acc: any) => {
     setSelectedAccForEdit(acc);
     setShowEditModal(true);
@@ -127,7 +143,6 @@ export default function Savings() {
     }
   };
 
-  // আপডেট ট্রানজেকশন
   const handleUpdateTransaction = async () => {
     if (!editFormData || !editingTxId) return;
     try {
@@ -137,13 +152,13 @@ export default function Savings() {
       toast.success("সফলভাবে আপডেট হয়েছে");
       setEditingTxId(null);
       fetchLastTransactions(selectedAccForEdit);
-      fetchData(); // ব্যালেন্স রিফ্রেশ
+      fetchData();
     } catch (error: any) {
       toast.error(error.response?.data?.message || "আপডেট ব্যর্থ");
     }
   };
 
-  // ডিলেট ট্রানজেকশন
+
   const handleDeleteTransaction = async (id: string) => {
     if (!window.confirm("আপনি কি নিশ্চিতভাবে এই ট্রানজেকশনটি ডিলেট করতে চান? এটি ডাটাবেজ এবং ব্যালেন্স থেকেও মুছে যাবে।")) return;
     try {
@@ -152,7 +167,7 @@ export default function Savings() {
       });
       toast.success("সফলভাবে ডিলেট হয়েছে");
       fetchLastTransactions(selectedAccForEdit);
-      fetchData(); // ব্যালেন্স রিফ্রেশ
+      fetchData();
     } catch (error: any) {
       toast.error(error.response?.data?.message || "ডিলেট করতে সমস্যা হয়েছে");
     }
@@ -387,7 +402,12 @@ export default function Savings() {
                 />
               </div>
 
-              <div className="pt-2 flex justify-end gap-3">
+              <div className="pt-2 flex justify-between gap-3">
+                <button
+                  type="button"
+                  onClick={handleLastDepositDataRetrieve}
+                  className="px-4 py-2 text-slate-600 hover:bg-slate-100 rounded-lg transition"
+                >সর্বশেষ জমা</button>
                 <button
                   type="button"
                   onClick={() => setShowDepositModal(false)}
