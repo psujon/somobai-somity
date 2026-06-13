@@ -193,11 +193,11 @@ router.get("/statement/:memberId", async (req, res) => {
           where: {
             ...(from || to
               ? {
-                  transactionDate: {
-                    ...(from ? { gte: new Date(from as string) } : {}),
-                    ...(to ? { lte: new Date(new Date(to as string).setHours(23, 59, 59)) } : {}),
-                  },
-                }
+                transactionDate: {
+                  ...(from ? { gte: new Date(from as string) } : {}),
+                  ...(to ? { lte: new Date(new Date(to as string).setHours(23, 59, 59)) } : {}),
+                },
+              }
               : {}),
           },
           orderBy: { transactionDate: "asc" },
@@ -251,8 +251,7 @@ router.get("/:id/last-transactions", async (req, res) => {
   try {
     const txs = await prisma.savingsTransaction.findMany({
       where: { savingsAccountId: id },
-      orderBy: { createdAt: "desc" },
-      take: 5,
+      orderBy: { createdAt: "desc" }
     });
     res.json(txs);
   } catch (err) {

@@ -532,7 +532,7 @@ export default function Savings() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
           <div className="bg-white rounded-xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
             <div className="p-5 border-b flex justify-between items-center bg-indigo-700">
-              <h3 className="text-xl font-bold text-white">ট্রানজেকশন ইতিহাস (লাস্ট ৫টি)</h3>
+              <h3 className="text-xl font-bold text-white">ট্রানজেকশন ইতিহাস</h3>
               <button onClick={() => setShowEditModal(false)} className="text-white/70 hover:text-white transition">
                 <X size={22} />
               </button>
