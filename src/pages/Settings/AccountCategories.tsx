@@ -21,7 +21,7 @@ export default function AccountCategories() {
 
   const fetchCategories = async () => {
     try {
-      const res = await axios.get("http://localhost:5000/api/account-categories", {
+      const res = await axios.get(`${process.env.API_HOST}/api/account-categories`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       setCategories(res.data);
@@ -41,13 +41,13 @@ export default function AccountCategories() {
     try {
       if (editingCategory) {
         await axios.put(
-          `http://localhost:5000/api/account-categories/${editingCategory.id}`,
+          `${process.env.API_HOST}/api/account-categories/${editingCategory.id}`,
           formData,
           { headers: { Authorization: `Bearer ${token}` } }
         );
         toast.success("ক্যাটাগরী সফলভাবে আপডেট হয়েছে");
       } else {
-        await axios.post("http://localhost:5000/api/account-categories", formData, {
+        await axios.post(`${process.env.API_HOST}/api/account-categories`, formData, {
           headers: { Authorization: `Bearer ${token}` },
         });
         toast.success("নতুন ক্যাটাগরী সফলভাবে তৈরি হয়েছে");
@@ -64,7 +64,7 @@ export default function AccountCategories() {
   const handleDelete = async (id: string, name: string) => {
     if (!window.confirm(`"${name}" ক্যাটাগরীটি ডিলেট করতে চান?`)) return;
     try {
-      await axios.delete(`http://localhost:5000/api/account-categories/${id}`, {
+      await axios.delete(`${process.env.API_HOST}/api/account-categories/${id}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       toast.success("ক্যাটাগরী ডিলেট হয়েছে");

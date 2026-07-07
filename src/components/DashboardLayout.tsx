@@ -21,7 +21,7 @@ export default function DashboardLayout() {
 
   useEffect(() => {
     if (token) {
-      axios.get("http://localhost:5000/api/company-profile", {
+      axios.get(`${process.env.API_HOST}/api/company-profile`, {
         headers: { Authorization: `Bearer ${token}` }
       })
         .then(res => setCompanyProfile(res.data))
@@ -34,6 +34,23 @@ export default function DashboardLayout() {
       document.title = companyProfile.name;
     } else {
       document.title = "সমবায় সমিতি ম্যানেজমেন্ট সিস্টেম";
+    }
+
+    if (companyProfile?.logo) {
+      const favicon = document.querySelector("link[rel='icon']") as HTMLLinkElement;
+      if (favicon) {
+        favicon.href = `${process.env.API_HOST}${companyProfile.logo}`;
+        const logoPath = companyProfile.logo.toLowerCase();
+        if (logoPath.endsWith(".png")) {
+          favicon.type = "image/png";
+        } else if (logoPath.endsWith(".jpg") || logoPath.endsWith(".jpeg")) {
+          favicon.type = "image/jpeg";
+        } else if (logoPath.endsWith(".ico")) {
+          favicon.type = "image/x-icon";
+        } else if (logoPath.endsWith(".svg")) {
+          favicon.type = "image/svg+xml";
+        }
+      }
     }
   }, [companyProfile]);
 
@@ -68,7 +85,7 @@ export default function DashboardLayout() {
   const handleLogout = async () => {
     try {
       if (user?.id) {
-        await axios.post("http://localhost:5000/api/auth/logout", { userId: user.id }, {
+        await axios.post(`${process.env.API_HOST}/api/auth/logout`, { userId: user.id }, {
           headers: { Authorization: `Bearer ${token}` }
         });
       }

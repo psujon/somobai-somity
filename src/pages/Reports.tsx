@@ -53,12 +53,12 @@ export default function Reports() {
 
   // সদস্য তালিকা ও কোম্পানি প্রোফাইল লোড
   useEffect(() => {
-    axios.get("http://localhost:5000/api/members", {
+    axios.get(`${process.env.API_HOST}/api/members`, {
       headers: { Authorization: `Bearer ${token}` },
     }).then(res => setMembers(res.data))
       .finally(() => setLoadingMembers(false));
 
-    axios.get("http://localhost:5000/api/company-profile", {
+    axios.get(`${process.env.API_HOST}/api/company-profile`, {
       headers: { Authorization: `Bearer ${token}` },
     }).then(res => setCompanyProfile(res.data)).catch(() => { });
   }, []);
@@ -73,7 +73,7 @@ export default function Reports() {
       if (fromDate) params.append("from", fromDate);
       if (toDate) params.append("to", toDate);
       const res = await axios.get(
-        `http://localhost:5000/api/savings/statement/${selectedMember.id}?${params.toString()}`,
+        `${process.env.API_HOST}/api/savings/statement/${selectedMember.id}?${params.toString()}`,
         { headers: { Authorization: `Bearer ${token}` } }
       );
       setStatement(res.data);
@@ -93,7 +93,7 @@ export default function Reports() {
       if (fromDate) params.append("from", fromDate);
       if (toDate) params.append("to", toDate);
       const res = await axios.get(
-        `http://localhost:5000/api/savings/reports/association-income-expense?${params.toString()}`,
+        `${process.env.API_HOST}/api/savings/reports/association-income-expense?${params.toString()}`,
         { headers: { Authorization: `Bearer ${token}` } }
       );
       setAssociationData(res.data);
@@ -182,7 +182,7 @@ export default function Reports() {
         @media print{body{margin:12px}@page{margin:12mm}}
       </style></head><body>
       <div class="hdr">
-        ${companyProfile?.logo ? `<img src="http://localhost:5000${companyProfile.logo}" class="hdr-logo" alt="Logo"/>` : ''}
+        ${companyProfile?.logo ? `<img src="${process.env.API_HOST}${companyProfile.logo}" class="hdr-logo" alt="Logo"/>` : ''}
         <div class="hdr-text">
           <h1>${companyProfile?.name || 'সমবায় সমিতি'}</h1>
           <h2>সঞ্চয় ব্যাংক স্টেটমেন্ট</h2>
@@ -250,7 +250,7 @@ export default function Reports() {
         @media print{body{margin:12px}@page{margin:12mm}}
       </style></head><body>
       <div class="hdr">
-        ${companyProfile?.logo ? `<img src="http://localhost:5000${companyProfile.logo}" class="hdr-logo" alt="Logo"/>` : ''}
+        ${companyProfile?.logo ? `<img src="${process.env.API_HOST}${companyProfile.logo}" class="hdr-logo" alt="Logo"/>` : ''}
         <div class="hdr-text">
           <h1>${companyProfile?.name || 'সমবায় সমিতি'}</h1>
           <h2>সমিতি আয়-ব্যয় বিবরণী</h2>
@@ -546,7 +546,7 @@ export default function Reports() {
           <div className="org-header hidden print:flex items-center justify-center gap-4 border-b-2 border-blue-900 pb-3 mb-4 text-center">
             {companyProfile?.logo && (
               <img
-                src={`http://localhost:5000${companyProfile.logo}`}
+                src={`${process.env.API_HOST}${companyProfile.logo}`}
                 alt="Logo"
                 className="h-14 w-14 object-contain"
               />
@@ -721,7 +721,7 @@ export default function Reports() {
           <div className="org-header hidden print:flex items-center justify-center gap-4 border-b-2 border-blue-900 pb-3 mb-4 text-center">
             {companyProfile?.logo && (
               <img
-                src={`http://localhost:5000${companyProfile.logo}`}
+                src={`${process.env.API_HOST}${companyProfile.logo}`}
                 alt="Logo"
                 className="h-14 w-14 object-contain"
               />

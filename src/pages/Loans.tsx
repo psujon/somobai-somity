@@ -23,8 +23,8 @@ export default function Loans() {
   const fetchData = async () => {
     try {
       const [loanRes, memRes] = await Promise.all([
-        axios.get("http://localhost:5000/api/loans", { headers: { Authorization: `Bearer ${token}` } }),
-        axios.get("http://localhost:5000/api/members", { headers: { Authorization: `Bearer ${token}` } })
+        axios.get(`${process.env.API_HOST}/api/loans`, { headers: { Authorization: `Bearer ${token}` } }),
+        axios.get(`${process.env.API_HOST}/api/members`, { headers: { Authorization: `Bearer ${token}` } })
       ]);
       setLoans(loanRes.data);
       setMembers(memRes.data);
@@ -42,7 +42,7 @@ export default function Loans() {
   const handleApplyLoan = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      await axios.post("http://localhost:5000/api/loans", formData, {
+      await axios.post(`${process.env.API_HOST}/api/loans`, formData, {
         headers: { Authorization: `Bearer ${token}` }
       });
       setShowModal(false);
@@ -56,7 +56,7 @@ export default function Loans() {
   const handleApprove = async (id: string) => {
     if(!window.confirm("আপনি কি নিশ্চিত যে এই ঋণটি অনুমোদন ও বিতরণ করতে চান?")) return;
     try {
-      await axios.post(`http://localhost:5000/api/loans/${id}/approve`, {}, {
+      await axios.post(`${process.env.API_HOST}/api/loans/${id}/approve`, {}, {
         headers: { Authorization: `Bearer ${token}` }
       });
       fetchData();
@@ -69,7 +69,7 @@ export default function Loans() {
   const handleInstallment = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      await axios.post(`http://localhost:5000/api/loans/${selectedLoanId}/installment`, installmentData, {
+      await axios.post(`${process.env.API_HOST}/api/loans/${selectedLoanId}/installment`, installmentData, {
         headers: { Authorization: `Bearer ${token}` }
       });
       setShowInstallmentModal(false);

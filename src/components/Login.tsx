@@ -21,13 +21,13 @@ export default function Login() {
 
     try {
       if (isMember) {
-        const res = await axios.post("http://localhost:5000/api/auth/member-login", {
+        const res = await axios.post(`${process.env.API_HOST}/api/auth/member-login`, {
           phone,
         });
         login(res.data.token, res.data.user);
         navigate("/member-dashboard");
       } else {
-        const res = await axios.post("http://localhost:5000/api/auth/login", {
+        const res = await axios.post(`${process.env.API_HOST}/api/auth/login`, {
           email,
           password,
         });

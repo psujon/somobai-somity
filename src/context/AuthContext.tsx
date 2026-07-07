@@ -25,7 +25,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   useEffect(() => {
     if (token) {
-      axios.get("http://localhost:5000/api/auth/me", {
+      axios.get(`${process.env.API_HOST}/api/auth/me`, {
         headers: { Authorization: `Bearer ${token}` }
       })
       .then(res => {

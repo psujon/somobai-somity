@@ -3,6 +3,7 @@ import { authenticateToken } from "../middleware/auth.js";
 import mysqldumpPkg from "mysqldump";
 import path from "path";
 import fs from "fs";
+import { parseDatabaseUrl } from "../utils/backupScheduler.js";
 const mysqldump = mysqldumpPkg.default || mysqldumpPkg;
 const router = express.Router();
 router.use(authenticateToken);
@@ -16,13 +17,14 @@ router.post("/", (req, res) => {
         const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
         const filename = `backup_coop_db_${timestamp}.sql`;
         const filepath = path.join(backupDir, filename);
-        // Using mysqldump npm package
+        const dbConfig = parseDatabaseUrl(process.env.DATABASE_URL || "");
+        // Using mysqldump npm package with dynamic credentials
         mysqldump({
             connection: {
-                host: 'localhost',
-                user: 'root',
-                password: '',
-                database: 'coop_db',
+                host: dbConfig.host,
+                user: dbConfig.user,
+                password: dbConfig.password,
+                database: dbConfig.database,
             },
             dumpToFile: filepath,
         }).then(() => {

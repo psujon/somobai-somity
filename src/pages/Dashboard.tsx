@@ -54,7 +54,7 @@ export default function Dashboard() {
   const fetchDashboard = async () => {
     setLoading(true);
     try {
-      const res = await axios.get("http://localhost:5000/api/dashboard/summary", {
+      const res = await axios.get(`${process.env.API_HOST}/api/dashboard/summary`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       setStats(res.data.stats);

@@ -15,8 +15,6 @@ const storage = multer.diskStorage({
 });
 const upload = multer({ storage });
 
-router.use(authenticateToken);
-
 // Get company profile
 router.get("/", async (req, res) => {
   try {
@@ -31,6 +29,9 @@ router.get("/", async (req, res) => {
   }
 });
 
+// Protect write operations below
+router.use(authenticateToken);
+
 // Upsert company profile
 router.post("/", upload.single("logo"), async (req, res) => {
   const {
@@ -38,17 +39,17 @@ router.post("/", upload.single("logo"), async (req, res) => {
     vatNo, tradeLicenseNo, hotline, website, socialMediaLinks,
     bankAccountNo, bankName, bankBranch, address
   } = req.body;
-  
+
   const logoPath = req.file ? `/uploads/${req.file.filename}` : undefined;
 
   try {
     const profiles: any[] = await prisma.$queryRaw`SELECT * FROM CompanyProfile LIMIT 1`;
-    
+
     if (profiles.length > 0) {
       // Update existing
       const existingId = profiles[0].id;
       const logoToSave = logoPath ? logoPath : profiles[0].logo;
-      
+
       await prisma.$executeRaw`
         UPDATE CompanyProfile SET 
           name = ${name || null},

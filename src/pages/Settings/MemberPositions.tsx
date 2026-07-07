@@ -14,7 +14,7 @@ export default function MemberPositions() {
 
   const fetchPositions = async () => {
     try {
-      const res = await axios.get("http://localhost:5000/api/positions", {
+      const res = await axios.get(`${process.env.API_HOST}/api/positions`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       setPositions(res.data);
@@ -33,11 +33,11 @@ export default function MemberPositions() {
     e.preventDefault();
     try {
       if (editingPos) {
-        await axios.put(`http://localhost:5000/api/positions/${editingPos.id}`, { name }, {
+        await axios.put(`${process.env.API_HOST}/api/positions/${editingPos.id}`, { name }, {
           headers: { Authorization: `Bearer ${token}` }
         });
       } else {
-        await axios.post("http://localhost:5000/api/positions", { name }, {
+        await axios.post(`${process.env.API_HOST}/api/positions`, { name }, {
           headers: { Authorization: `Bearer ${token}` }
         });
       }
@@ -53,7 +53,7 @@ export default function MemberPositions() {
   const handleDelete = async (id: string) => {
     if (!window.confirm("আপনি কি নিশ্চিত যে এই পদবীটি ডিলিট করতে চান?")) return;
     try {
-      await axios.delete(`http://localhost:5000/api/positions/${id}`, {
+      await axios.delete(`${process.env.API_HOST}/api/positions/${id}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       fetchPositions();

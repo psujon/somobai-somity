@@ -50,8 +50,8 @@ export default function Savings() {
   const fetchData = async () => {
     try {
       const [accRes, memRes] = await Promise.all([
-        axios.get("http://localhost:5000/api/savings", { headers: { Authorization: `Bearer ${token}` } }),
-        axios.get("http://localhost:5000/api/members", { headers: { Authorization: `Bearer ${token}` } })
+        axios.get(`${process.env.API_HOST}/api/savings`, { headers: { Authorization: `Bearer ${token}` } }),
+        axios.get(`${process.env.API_HOST}/api/members`, { headers: { Authorization: `Bearer ${token}` } })
       ]);
       setAccounts(accRes.data);
       setMembers(memRes.data);
@@ -69,7 +69,7 @@ export default function Savings() {
   const handleCreateAccount = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      await axios.post("http://localhost:5000/api/savings", formData, {
+      await axios.post(`${process.env.API_HOST}/api/savings`, formData, {
         headers: { Authorization: `Bearer ${token}` }
       });
       setShowModal(false);
@@ -84,7 +84,7 @@ export default function Savings() {
   const handleDeposit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      await axios.post(`http://localhost:5000/api/savings/${selectedAccountId}/deposit`, depositData, {
+      await axios.post(`${process.env.API_HOST}/api/savings/${selectedAccountId}/deposit`, depositData, {
         headers: { Authorization: `Bearer ${token}` }
       });
       setShowDepositModal(false);
@@ -114,7 +114,7 @@ export default function Savings() {
     setMonthlySummary([]);
     try {
       const res = await axios.get(
-        `http://localhost:5000/api/savings/monthly-summary/${member.id}`,
+        `${process.env.API_HOST}/api/savings/monthly-summary/${member.id}`,
         { headers: { Authorization: `Bearer ${token}` } }
       );
       setMonthlySummary(res.data);
@@ -132,7 +132,7 @@ export default function Savings() {
     setLastTransactions([]);
     try {
       const res = await axios.get(
-        `http://localhost:5000/api/savings/${acc.id}/last-transactions`,
+        `${process.env.API_HOST}/api/savings/${acc.id}/last-transactions`,
         { headers: { Authorization: `Bearer ${token}` } }
       );
       setLastTransactions(res.data);
@@ -146,7 +146,7 @@ export default function Savings() {
   const handleUpdateTransaction = async () => {
     if (!editFormData || !editingTxId) return;
     try {
-      await axios.put(`http://localhost:5000/api/savings/transactions/${editingTxId}`, editFormData, {
+      await axios.put(`${process.env.API_HOST}/api/savings/transactions/${editingTxId}`, editFormData, {
         headers: { Authorization: `Bearer ${token}` }
       });
       toast.success("সফলভাবে আপডেট হয়েছে");
@@ -162,7 +162,7 @@ export default function Savings() {
   const handleDeleteTransaction = async (id: string) => {
     if (!window.confirm("আপনি কি নিশ্চিতভাবে এই ট্রানজেকশনটি ডিলেট করতে চান? এটি ডাটাবেজ এবং ব্যালেন্স থেকেও মুছে যাবে।")) return;
     try {
-      await axios.delete(`http://localhost:5000/api/savings/transactions/${id}`, {
+      await axios.delete(`${process.env.API_HOST}/api/savings/transactions/${id}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       toast.success("সফলভাবে ডিলেট হয়েছে");

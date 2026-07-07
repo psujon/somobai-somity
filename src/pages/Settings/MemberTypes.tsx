@@ -14,7 +14,7 @@ export default function MemberTypes() {
 
   const fetchTypes = async () => {
     try {
-      const res = await axios.get("http://localhost:5000/api/member-types", {
+      const res = await axios.get(`${process.env.API_HOST}/api/member-types`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       setTypes(res.data);
@@ -33,11 +33,11 @@ export default function MemberTypes() {
     e.preventDefault();
     try {
       if (editingType) {
-        await axios.put(`http://localhost:5000/api/member-types/${editingType.id}`, { name }, {
+        await axios.put(`${process.env.API_HOST}/api/member-types/${editingType.id}`, { name }, {
           headers: { Authorization: `Bearer ${token}` }
         });
       } else {
-        await axios.post("http://localhost:5000/api/member-types", { name }, {
+        await axios.post(`${process.env.API_HOST}/api/member-types`, { name }, {
           headers: { Authorization: `Bearer ${token}` }
         });
       }
@@ -53,7 +53,7 @@ export default function MemberTypes() {
   const handleDelete = async (id: string) => {
     if (!window.confirm("আপনি কি নিশ্চিত যে এই সদস্য ধরনটি ডিলিট করতে চান?")) return;
     try {
-      await axios.delete(`http://localhost:5000/api/member-types/${id}`, {
+      await axios.delete(`${process.env.API_HOST}/api/member-types/${id}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       fetchTypes();

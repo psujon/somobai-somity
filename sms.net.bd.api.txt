@@ -1,0 +1,53 @@
+async function sendDepositSms(phone: string, memberName: string, amount: number, accountNo: string, depositMonth?: string | null, transactionDate?: Date | null, depositVoucherNo: string | null, retryCount = 3) {
+  // Format phone number to 8801xxxxxxxxx format
+  let cleanPhone = phone.trim().replace(/\+/g, "").replace(/\s/g, "").replace(/-/g, "");
+  if (cleanPhone.startsWith("01")) {
+    cleanPhone = "88" + cleanPhone;
+  }
+
+  // Format depositMonth to ShortMonth-Year if present
+  let prefixText = "";
+  if (depositMonth) {
+    const [year, month] = depositMonth.split("-");
+    const monthNamesEn = [
+      "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+      "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"
+    ];
+    const monthIndex = parseInt(month) - 1;
+    if (monthIndex >= 0 && monthIndex < 12) {
+      prefixText = `${monthNamesEn[monthIndex]}-${year} `;
+    }
+  }
+
+  // Bengali/English SMS text
+  const message = `Dear Shareholders, your ${prefixText} monthly installment of BDT ${amount} has been received successfully on ${transactionDate?.toISOString().split("T")[0]}. Receipt No: ${depositVoucherNo}. Thank you for being with Future Value Properties.`;
+
+  for (let attempt = 1; attempt <= retryCount; attempt++) {
+    try {
+      const payload = new URLSearchParams({
+        api_key: "2h2Ajgzt3Umrtp8jA7TGvrYadl08FvrDHuMsil9A",
+        to: cleanPhone,
+        msg: message
+      });
+
+      const response = await axios.post("https://api.sms.net.bd/sendsms", payload);
+      const errorCode = response.data?.error;
+
+      if (errorCode == 0) {
+        console.log(`SMS sent successfully to ${cleanPhone} on attempt ${attempt}`);
+        return; // Success!
+      } else {
+        console.log(`SMS attempt ${attempt} failed with error code ${errorCode}: ${response.data?.msg || response.data?.message || "Unknown error"}`);
+      }
+    } catch (error: any) {
+      console.log(`SMS attempt ${attempt} network error:`, error.message || error);
+    }
+
+    if (attempt < retryCount) {
+      console.log(`Retrying SMS send in 2 seconds... (Attempt ${attempt + 1}/${retryCount})`);
+      await new Promise(resolve => setTimeout(resolve, 2000));
+    }
+  }
+
+  console.log(`Failed to send SMS to ${cleanPhone} after ${retryCount} attempts.`);
+}

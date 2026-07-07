@@ -24,7 +24,7 @@ export default function Members() {
 
   const fetchMembers = async () => {
     try {
-      const res = await axios.get("http://localhost:5000/api/members", {
+      const res = await axios.get(`${process.env.API_HOST}/api/members`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       setMembers(res.data);
@@ -38,7 +38,7 @@ export default function Members() {
 
   const fetchPositions = async () => {
     try {
-      const res = await axios.get("http://localhost:5000/api/positions", {
+      const res = await axios.get(`${process.env.API_HOST}/api/positions`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       setPositions(res.data);
@@ -49,7 +49,7 @@ export default function Members() {
 
   const fetchMemberTypes = async () => {
     try {
-      const res = await axios.get("http://localhost:5000/api/member-types", {
+      const res = await axios.get(`${process.env.API_HOST}/api/member-types`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       setMemberTypes(res.data);
@@ -111,14 +111,14 @@ export default function Members() {
       }
 
       if (editingMember) {
-        await axios.put(`http://localhost:5000/api/members/${editingMember.id}`, data, {
+        await axios.put(`${process.env.API_HOST}/api/members/${editingMember.id}`, data, {
           headers: {
             Authorization: `Bearer ${token}`,
             "Content-Type": "multipart/form-data"
           }
         });
       } else {
-        await axios.post("http://localhost:5000/api/members", data, {
+        await axios.post(`${process.env.API_HOST}/api/members`, data, {
           headers: {
             Authorization: `Bearer ${token}`,
             "Content-Type": "multipart/form-data"
@@ -140,7 +140,7 @@ export default function Members() {
   const handleDelete = async (member: any) => {
     if (!window.confirm(`"${member.name}" কে বাতিল করতে চান? তার স্ট্যাটাস 'বাতিল' হয়ে যাবে।`)) return;
     try {
-      await axios.delete(`http://localhost:5000/api/members/${member.id}`, {
+      await axios.delete(`${process.env.API_HOST}/api/members/${member.id}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       fetchMembers();
@@ -201,7 +201,7 @@ export default function Members() {
                 <tr key={member.id} className="hover:bg-slate-50">
                   <td className="px-6 py-4">
                     {member.photo ? (
-                      <img src={`http://localhost:5000${member.photo}`} alt={member.name} className="w-10 h-10 rounded-full object-cover border border-slate-200" />
+                      <img src={`${process.env.API_HOST}${member.photo}`} alt={member.name} className="w-10 h-10 rounded-full object-cover border border-slate-200" />
                     ) : (
                       <div className="w-10 h-10 rounded-full bg-slate-200 flex items-center justify-center text-slate-500 font-bold">{member.name.charAt(0)}</div>
                     )}

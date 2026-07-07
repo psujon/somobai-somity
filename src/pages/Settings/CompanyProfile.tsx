@@ -22,7 +22,7 @@ export default function CompanyProfile() {
   useEffect(() => {
     const fetchProfile = async () => {
       try {
-        const res = await axios.get("http://localhost:5000/api/company-profile", {
+        const res = await axios.get(`${process.env.API_HOST}/api/company-profile`, {
           headers: { Authorization: `Bearer ${token}` }
         });
         if (res.data) {
@@ -72,7 +72,7 @@ export default function CompanyProfile() {
         data.append("logo", logoFile);
       }
 
-      const res = await axios.post("http://localhost:5000/api/company-profile", data, {
+      const res = await axios.post(`${process.env.API_HOST}/api/company-profile`, data, {
         headers: { 
           Authorization: `Bearer ${token}`,
           "Content-Type": "multipart/form-data"
@@ -128,7 +128,7 @@ export default function CompanyProfile() {
               <label className="block text-sm font-medium text-slate-700 mb-1">কোম্পানীর লোগো</label>
               <div className="flex items-center gap-4">
                 {existingLogo && !logoFile && (
-                  <img src={`http://localhost:5000${existingLogo}`} alt="Logo" className="h-10 w-10 object-cover rounded border" />
+                  <img src={`${process.env.API_HOST}${existingLogo}`} alt="Logo" className="h-10 w-10 object-cover rounded border" />
                 )}
                 <input type="file" accept="image/*" onChange={e => setLogoFile(e.target.files?.[0] || null)} className="w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100" />
               </div>

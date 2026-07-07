@@ -44,7 +44,7 @@ export default function Accounts() {
       if (filters.memberId) params.append("memberId", filters.memberId);
       if (filters.amount) params.append("amount", filters.amount);
 
-      const res = await axios.get(`http://localhost:5000/api/accounts?${params.toString()}`, {
+      const res = await axios.get(`${process.env.API_HOST}/api/accounts?${params.toString()}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       setTransactions(res.data);
@@ -57,7 +57,7 @@ export default function Accounts() {
 
   const fetchMembers = async () => {
     try {
-      const res = await axios.get("http://localhost:5000/api/members", {
+      const res = await axios.get(`${process.env.API_HOST}/api/members`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       setMembers(res.data);
@@ -68,7 +68,7 @@ export default function Accounts() {
 
   const fetchCategories = async (type: string) => {
     try {
-      const res = await axios.get(`http://localhost:5000/api/account-categories?type=${type}`, {
+      const res = await axios.get(`${process.env.API_HOST}/api/account-categories?type=${type}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       setCategories(res.data);
@@ -79,7 +79,7 @@ export default function Accounts() {
 
   const fetchAllCategories = async () => {
     try {
-      const res = await axios.get("http://localhost:5000/api/account-categories", {
+      const res = await axios.get(`${process.env.API_HOST}/api/account-categories`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       setAllCategories(res.data);
@@ -138,7 +138,7 @@ export default function Accounts() {
   const handleDelete = async (id: string) => {
     if (!window.confirm("আপনি কি নিশ্চিতভাবে এই ভাউচারটি ডিলিট করতে চান?")) return;
     try {
-      await axios.delete(`http://localhost:5000/api/accounts/${id}`, {
+      await axios.delete(`${process.env.API_HOST}/api/accounts/${id}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       toast.success("ভাউচার সফলভাবে ডিলিট হয়েছে");
@@ -152,12 +152,12 @@ export default function Accounts() {
     e.preventDefault();
     try {
       if (editingId) {
-        await axios.put(`http://localhost:5000/api/accounts/${editingId}`, formData, {
+        await axios.put(`${process.env.API_HOST}/api/accounts/${editingId}`, formData, {
           headers: { Authorization: `Bearer ${token}` }
         });
         toast.success("ভাউচার সফলভাবে আপডেট হয়েছে");
       } else {
-        await axios.post("http://localhost:5000/api/accounts", formData, {
+        await axios.post(`${process.env.API_HOST}/api/accounts`, formData, {
           headers: { Authorization: `Bearer ${token}` }
         });
         toast.success("ভাউচার সফলভাবে তৈরি হয়েছে");

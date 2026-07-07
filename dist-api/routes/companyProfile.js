@@ -12,7 +12,6 @@ const storage = multer.diskStorage({
     },
 });
 const upload = multer({ storage });
-router.use(authenticateToken);
 // Get company profile
 router.get("/", async (req, res) => {
     try {
@@ -28,6 +27,8 @@ router.get("/", async (req, res) => {
         res.status(500).json({ message: "Error fetching company profile" });
     }
 });
+// Protect write operations below
+router.use(authenticateToken);
 // Upsert company profile
 router.post("/", upload.single("logo"), async (req, res) => {
     const { name, shortCode, establishedYear, registrationNo, tinNo, vatNo, tradeLicenseNo, hotline, website, socialMediaLinks, bankAccountNo, bankName, bankBranch, address } = req.body;

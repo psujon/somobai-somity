@@ -200,7 +200,7 @@ router.post("/:id/deposit", async (req, res) => {
     // SMS পাঠানোর চেষ্টা করা হচ্ছে (অ্যাসিনক্রোনাসলি)
     const phone = (transaction.account as any).member?.phone;
     if (phone) {
-      sendDepositSms(phone, (transaction.account as any).member.name, numAmount, transaction.account.accountNo, depositMonth)
+      sendDepositSms(phone, (transaction.account as any).member.name, numAmount, transaction.account.accountNo, depositMonth, transactionDate, voucherNo)
         .catch(err => console.error("SMS notification send failed:", err));
     }
   } catch (error: any) {
@@ -524,7 +524,7 @@ router.delete("/transactions/:id", async (req, res) => {
   }
 });
 
-async function sendDepositSms(phone: string, memberName: string, amount: number, accountNo: string, depositMonth?: string | null, retryCount = 3) {
+async function sendDepositSms(phone: string, memberName: string, amount: number, accountNo: string, depositMonth: string | null | undefined, transactionDate: Date | string | null | undefined, depositVoucherNo: string | null | undefined, retryCount = 3) {
   // Format phone number to 8801xxxxxxxxx format
   let cleanPhone = phone.trim().replace(/\+/g, "").replace(/\s/g, "").replace(/-/g, "");
   if (cleanPhone.startsWith("01")) {
@@ -545,28 +545,46 @@ async function sendDepositSms(phone: string, memberName: string, amount: number,
     }
   }
 
+  let formattedDate = "";
+  if (transactionDate) {
+    const d = new Date(transactionDate);
+    if (!isNaN(d.getTime())) {
+      formattedDate = d.toISOString().split("T")[0];
+    }
+  }
+  if (!formattedDate) {
+    formattedDate = new Date().toISOString().split("T")[0];
+  }
+
   // Bengali/English SMS text
-  const message = `${prefixText} deposited Tk.${amount}. Future Value Properties`;
+  const message = `Dear Shareholders, your ${prefixText} monthly installment of BDT ${amount}.00 has been received successfully on ${formattedDate}. Receipt No: ${depositVoucherNo}. Thank you for being with Future Value Properties.`;
 
   for (let attempt = 1; attempt <= retryCount; attempt++) {
     try {
-      const payload = new URLSearchParams({
-        api_key: "2h2Ajgzt3Umrtp8jA7TGvrYadl08FvrDHuMsil9A",
-        to: cleanPhone,
-        msg: message
-      });
+      const payload = {
+        apiKey: process.env.MIM_SMS_API_KEY,
+        userName: process.env.MIM_SMS_USERNAME,
+        senderName: process.env.MIM_SMS_SENDER_NAME,
+        transactionType: "T",
+        mobileNumber: cleanPhone,
+        message: message,
+        campaignName: "FVP_Deposit"
+      };
 
-      const response = await axios.post("https://api.sms.net.bd/sendsms", payload);
-      const errorCode = response.data?.error;
+      const response = await axios.post("https://api.mimsms.com/api/V2/SMS", payload);
+      const statusCode = response.data?.statusCode;
 
-      if (errorCode == 0) {
+      if (statusCode == 200) {
         console.log(`SMS sent successfully to ${cleanPhone} on attempt ${attempt}`);
         return; // Success!
       } else {
-        console.log(`SMS attempt ${attempt} failed with error code ${errorCode}: ${response.data?.msg || response.data?.message || "Unknown error"}`);
+        console.log(`SMS attempt ${attempt} failed with status code ${statusCode}: ${response.data?.status || "Unknown error"}`);
       }
     } catch (error: any) {
       console.log(`SMS attempt ${attempt} network error:`, error.message || error);
+      if (error.response?.data) {
+        console.log(`SMS attempt ${attempt} error response data:`, JSON.stringify(error.response.data));
+      }
     }
 
     if (attempt < retryCount) {

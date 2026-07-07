@@ -14,8 +14,10 @@ import companyProfileRoutes from "./routes/companyProfile.js";
 import dashboardRoutes from "./routes/dashboard.js";
 import accountCategoryRoutes from "./routes/accountCategories.js";
 import memberPortalRoutes from "./routes/memberPortal.js";
+import { startBackupScheduler } from "./utils/backupScheduler.js";
 
 dotenv.config();
+startBackupScheduler();
 
 const app = express();
 app.use(cors());

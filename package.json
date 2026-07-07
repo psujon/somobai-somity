@@ -15,6 +15,7 @@
   },
   "dependencies": {
     "@prisma/client": "^6.19.3",
+    "@types/nodemailer": "^8.0.1",
     "axios": "^1.15.2",
     "bcryptjs": "^3.0.3",
     "clsx": "^2.1.1",
@@ -26,6 +27,7 @@
     "lucide-react": "^1.14.0",
     "multer": "^2.1.1",
     "mysqldump": "^3.2.0",
+    "nodemailer": "^9.0.3",
     "react": "^19.2.5",
     "react-dom": "^19.2.5",
     "react-router-dom": "^7.14.2",

@@ -11,7 +11,7 @@ export default function DatabaseBackup() {
 
   const fetchBackups = async () => {
     try {
-      const res = await axios.get("http://localhost:5000/api/backup", {
+      const res = await axios.get(`${process.env.API_HOST}/api/backup`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       setBackups(res.data);
@@ -28,7 +28,7 @@ export default function DatabaseBackup() {
     setLoading(true);
     setStatusMsg({ type: "", text: "" });
     try {
-      await axios.post("http://localhost:5000/api/backup", {}, {
+      await axios.post(`${process.env.API_HOST}/api/backup`, {}, {
         headers: { Authorization: `Bearer ${token}` }
       });
       setStatusMsg({ type: "success", text: "ডাটাবেজ সফলভাবে ব্যাকআপ নেওয়া হয়েছে!" });

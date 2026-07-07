@@ -1,3 +1,5 @@
+import { useState, useEffect } from "react";
+import axios from "axios";
 import { Routes, Route, Navigate } from "react-router-dom";
 import { useAuth } from "./context/AuthContext";
 import Login from "./components/Login";
@@ -41,6 +43,47 @@ const MemberProtectedRoute = ({ children }: { children: React.ReactNode }) => {
 };
 
 function App() {
+  const [profile, setProfile] = useState<any>(null);
+
+  useEffect(() => {
+    const fetchProfile = async () => {
+      try {
+        const res = await axios.get(`${process.env.API_HOST}/api/company-profile`);
+        if (res.data) {
+          setProfile(res.data);
+          
+          // Set dynamic title
+          if (res.data.name) {
+            document.title = res.data.name;
+          }
+
+          // Set dynamic favicon
+          if (res.data.logo) {
+            const favicon = document.querySelector("link[rel='icon']") as HTMLLinkElement;
+            if (favicon) {
+              favicon.href = `${process.env.API_HOST}${res.data.logo}`;
+              
+              // Set icon type based on file type extension
+              const logoPath = res.data.logo.toLowerCase();
+              if (logoPath.endsWith(".png")) {
+                favicon.type = "image/png";
+              } else if (logoPath.endsWith(".jpg") || logoPath.endsWith(".jpeg")) {
+                favicon.type = "image/jpeg";
+              } else if (logoPath.endsWith(".ico")) {
+                favicon.type = "image/x-icon";
+              } else if (logoPath.endsWith(".svg")) {
+                favicon.type = "image/svg+xml";
+              }
+            }
+          }
+        }
+      } catch (error) {
+        console.error("Error fetching company profile on startup:", error);
+      }
+    };
+    fetchProfile();
+  }, []);
+
   return (
     <>
       <Routes>

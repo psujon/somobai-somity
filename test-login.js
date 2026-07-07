@@ -1,4 +1,5 @@
-fetch("http://localhost:5000/api/auth/login", {
+const apiHost = process.env.API_HOST || "http://localhost:5000";
+fetch(`${apiHost}/api/auth/login`, {
   method: "POST",
   headers: { "Content-Type": "application/json" },
   body: JSON.stringify({ email: "admin@coop.com", password: "admin123" })

@@ -24,7 +24,7 @@ export default function MemberDashboard() {
 
   const fetchCompanyProfile = async () => {
     try {
-      const res = await axios.get("http://localhost:5000/api/company-profile", {
+      const res = await axios.get(`${process.env.API_HOST}/api/company-profile`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       setCompanyProfile(res.data);
@@ -35,7 +35,7 @@ export default function MemberDashboard() {
 
   const fetchSummary = async () => {
     try {
-      const res = await axios.get("http://localhost:5000/api/member-portal/summary", {
+      const res = await axios.get(`${process.env.API_HOST}/api/member-portal/summary`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       setSummaryData(res.data);
@@ -49,7 +49,7 @@ export default function MemberDashboard() {
 
   const fetchProfiles = async () => {
     try {
-      const res = await axios.get("http://localhost:5000/api/member-portal/profile", {
+      const res = await axios.get(`${process.env.API_HOST}/api/member-portal/profile`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       setProfiles(res.data);
@@ -75,7 +75,7 @@ export default function MemberDashboard() {
       if (!selectedAccountId) return;
       setStatementLoading(true);
       try {
-        const res = await axios.get(`http://localhost:5000/api/member-portal/statement/${selectedAccountId}`, {
+        const res = await axios.get(`${process.env.API_HOST}/api/member-portal/statement/${selectedAccountId}`, {
           headers: { Authorization: `Bearer ${token}` }
         });
         setStatementData(res.data);
@@ -344,7 +344,7 @@ export default function MemberDashboard() {
                   <div className="flex items-center gap-3">
                     {companyProfile?.logo ? (
                       <img
-                        src={`http://localhost:5000${companyProfile.logo}`}
+                        src={`${process.env.API_HOST}${companyProfile.logo}`}
                         alt="Logo"
                         className="h-12 w-12 object-contain"
                       />
@@ -579,7 +579,7 @@ export default function MemberDashboard() {
                   <div className="relative w-36 h-36 rounded-full overflow-hidden border-4 border-slate-100 shadow-inner bg-slate-100 flex items-center justify-center">
                     {activeProfile.photo ? (
                       <img
-                        src={`http://localhost:5000${activeProfile.photo}`}
+                        src={`${process.env.API_HOST}${activeProfile.photo}`}
                         alt={activeProfile.name}
                         className="w-full h-full object-cover"
                       />
