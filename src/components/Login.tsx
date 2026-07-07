@@ -6,6 +6,8 @@ import { useAuth } from "../context/AuthContext";
 export default function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [phone, setPhone] = useState("");
+  const [isMember, setIsMember] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -18,15 +20,22 @@ export default function Login() {
     setLoading(true);
 
     try {
-      const res = await axios.post("http://localhost:5000/api/auth/login", {
-        email,
-        password,
-      });
-
-      login(res.data.token, res.data.user);
-      navigate("/");
+      if (isMember) {
+        const res = await axios.post("http://localhost:5000/api/auth/member-login", {
+          phone,
+        });
+        login(res.data.token, res.data.user);
+        navigate("/member-dashboard");
+      } else {
+        const res = await axios.post("http://localhost:5000/api/auth/login", {
+          email,
+          password,
+        });
+        login(res.data.token, res.data.user);
+        navigate("/");
+      }
     } catch (err: any) {
-      setError(err.response?.data?.message || "লগইন ব্যর্থ হয়েছে। ইমেইল এবং পাসওয়ার্ড যাচাই করুন।");
+      setError(err.response?.data?.message || (isMember ? "লগইন ব্যর্থ হয়েছে। মোবাইল নম্বর যাচাই করুন।" : "লগইন ব্যর্থ হয়েছে। ইমেইল এবং পাসওয়ার্ড যাচাই করুন।"));
     } finally {
       setLoading(false);
     }
@@ -50,29 +59,45 @@ export default function Login() {
           )}
 
           <form onSubmit={handleSubmit} className="space-y-5">
-            <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-1">ইমেইল</label>
-              <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition"
-                placeholder="admin@coop.com"
-              />
-            </div>
+            {isMember ? (
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-1">মোবাইল নম্বর</label>
+                <input
+                  type="text"
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                  required
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition"
+                  placeholder="01XXXXXXXXX"
+                />
+              </div>
+            ) : (
+              <>
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-1">ইমেইল</label>
+                  <input
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    required
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition"
+                    placeholder="admin@coop.com"
+                  />
+                </div>
 
-            <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-1">পাসওয়ার্ড</label>
-              <input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition"
-                placeholder="******"
-              />
-            </div>
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-1">পাসওয়ার্ড</label>
+                  <input
+                    type="password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    required
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition"
+                    placeholder="******"
+                  />
+                </div>
+              </>
+            )}
 
             <button
               type="submit"
@@ -81,6 +106,19 @@ export default function Login() {
             >
               {loading ? "লগইন হচ্ছে..." : "লগইন"}
             </button>
+
+            <div className="text-center pt-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setIsMember(!isMember);
+                  setError("");
+                }}
+                className="text-sm font-medium text-blue-600 hover:text-blue-800 transition"
+              >
+                {isMember ? "অ্যাডমিন/স্টাফ লগইন" : "সদস্য লগইন"}
+              </button>
+            </div>
           </form>
         </div>
       </div>

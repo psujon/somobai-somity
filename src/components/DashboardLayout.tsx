@@ -2,7 +2,8 @@ import { Outlet, Link, useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import {
   LayoutDashboard, Users, PiggyBank, CreditCard,
-  FileText, Briefcase, Settings, LogOut, Menu, X, ChevronDown, ChevronRight
+  FileText, Briefcase, Settings, LogOut, Menu, X, ChevronDown, ChevronRight,
+  Database
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import axios from "axios";
@@ -27,6 +28,14 @@ export default function DashboardLayout() {
         .catch(err => console.error("Error fetching profile:", err));
     }
   }, [token]);
+
+  useEffect(() => {
+    if (companyProfile?.name) {
+      document.title = companyProfile.name;
+    } else {
+      document.title = "সমবায় সমিতি ম্যানেজমেন্ট সিস্টেম";
+    }
+  }, [companyProfile]);
 
   const toggleMenu = (name: string) => {
     setOpenMenus(prev => ({ ...prev, [name]: !prev[name] }));
@@ -77,6 +86,7 @@ export default function DashboardLayout() {
     { name: "ঋণ ব্যবস্থাপনা", path: "/loans", icon: CreditCard },
     { name: "হিসাবরক্ষণ ও ভাউচার", path: "/accounts", icon: Briefcase },
     { name: "রিপোর্টস", path: "/reports", icon: FileText },
+    { name: "ডাটাবেজ ব্যাকআপ", path: "/backup", icon: Database },
     {
       name: "সেটিংস",
       path: "/settings",
@@ -87,9 +97,8 @@ export default function DashboardLayout() {
         { name: "মেম্বার পদবী", path: "/settings/member-positions" },
         { name: "ইউজার", path: "/settings/users" },
         { name: "হিসাবের ক্যাটাগরী", path: "/settings/account-categories" },
-        { name: "ডাটাবেজ ব্যাকআপ", path: "/settings/backup" },
       ]
-    },
+    }
   ];
 
   return (

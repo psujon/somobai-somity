@@ -1,8 +1,10 @@
 import express from "express";
 import { authenticateToken } from "../middleware/auth.js";
-import mysqldump from "mysqldump";
+import mysqldumpPkg from "mysqldump";
 import path from "path";
 import fs from "fs";
+
+const mysqldump = (mysqldumpPkg as any).default || mysqldumpPkg;
 
 const router = express.Router();
 router.use(authenticateToken);

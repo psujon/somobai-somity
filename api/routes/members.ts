@@ -68,7 +68,7 @@ router.post("/", upload.single("photo"), async (req, res) => {
 
 // Update  member
 router.put("/:id", upload.single("photo"), async (req, res) => {
-  const { id } = req.params;
+  const id = req.params.id as string;
   const { name, phone, email, nid, address, type, position, joinDate } = req.body;
   const photo = req.file ? `/uploads/${req.file.filename}` : undefined;
 

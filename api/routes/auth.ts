@@ -111,6 +111,19 @@ router.get("/me", async (req, res) => {
 
   try {
     const decoded: any = jwt.verify(token, process.env.JWT_SECRET || "super-secret-jwt-key");
+    if (decoded.role === "MEMBER") {
+      const member = await prisma.member.findFirst({
+        where: { phone: decoded.id },
+      });
+      if (!member) return res.status(404).json({ message: "Member not found" });
+      return res.json({
+        id: decoded.id,
+        name: member.name,
+        email: decoded.email,
+        role: "MEMBER"
+      });
+    }
+
     const user = await prisma.user.findUnique({
       where: { id: decoded.id },
       select: { id: true, name: true, email: true, role: true },
@@ -121,6 +134,45 @@ router.get("/me", async (req, res) => {
     res.json(user);
   } catch (err) {
     res.status(403).json({ message: "Invalid Token" });
+  }
+});
+
+router.post("/member-login", async (req, res) => {
+  const { phone } = req.body;
+  if (!phone) {
+    return res.status(400).json({ message: "মোবাইল নম্বর প্রয়োজন" });
+  }
+
+  try {
+    const trimmedPhone = phone.trim();
+
+    // Check if member exists
+    const member = await prisma.member.findFirst({
+      where: { phone: trimmedPhone }
+    });
+
+    if (!member) {
+      return res.status(400).json({ message: "এই ফোন নম্বরে কোনো সদস্য খুঁজে পাওয়া যায়নি।" });
+    }
+
+    const token = jwt.sign(
+      { id: trimmedPhone, email: member.email || "", role: "MEMBER" },
+      process.env.JWT_SECRET || "super-secret-jwt-key",
+      { expiresIn: "1d" }
+    );
+
+    res.json({
+      token,
+      user: {
+        id: trimmedPhone,
+        name: member.name,
+        email: member.email || "",
+        role: "MEMBER",
+      },
+    });
+  } catch (error) {
+    console.error("Member login error:", error);
+    res.status(500).json({ message: "সার্ভার এরর" });
   }
 });
 

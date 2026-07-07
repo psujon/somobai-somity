@@ -14,14 +14,11 @@ import companyProfileRoutes from "./routes/companyProfile.js";
 import dashboardRoutes from "./routes/dashboard.js";
 import accountCategoryRoutes from "./routes/accountCategories.js";
 import memberPortalRoutes from "./routes/memberPortal.js";
-
 dotenv.config();
-
 const app = express();
 app.use(cors());
 app.use(express.json());
 app.use(express.static("public"));
-
 // Routes
 app.use("/api/auth", authRoutes);
 app.use("/api/members", memberRoutes);
@@ -36,15 +33,12 @@ app.use("/api/company-profile", companyProfileRoutes);
 app.use("/api/dashboard", dashboardRoutes);
 app.use("/api/account-categories", accountCategoryRoutes);
 app.use("/api/member-portal", memberPortalRoutes);
-
 app.get("/api/health", (req, res) => {
-  res.json({ status: "ok", message: "Cooperative API is running" });
+    res.json({ status: "ok", message: "Cooperative API is running" });
 });
-
 // Start Server
 const PORT = process.env.PORT;
 app.listen(PORT, () => {
-  console.log(`Backend server running on ${PORT}`);
+    console.log(`Backend server running on ${PORT}`);
 });
-
 export default app;

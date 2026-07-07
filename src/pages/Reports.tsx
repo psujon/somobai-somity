@@ -34,7 +34,7 @@ export default function Reports() {
   const [showDropdown, setShowDropdown] = useState(false);
   const [selectedMember, setSelectedMember] = useState<any>(null);
 
-  // ——— তারিখ ফিল্টার ———
+  // —– তারিখ ফিল্টার ———
   const [fromDate, setFromDate] = useState("");
   const [toDate, setToDate] = useState("");
 
@@ -42,6 +42,11 @@ export default function Reports() {
   const [statement, setStatement] = useState<any>(null);
   const [loadingStatement, setLoadingStatement] = useState(false);
   const [loadingMembers, setLoadingMembers] = useState(true);
+
+  // ——— সমিতি আয়-ব্যয় বিবরণী ———
+  const [activeReportTab, setActiveReportTab] = useState<"member" | "association">("member");
+  const [associationData, setAssociationData] = useState<any>(null);
+  const [loadingAssociation, setLoadingAssociation] = useState(false);
 
   // ——— কোম্পানি প্রোফাইল ———
   const [companyProfile, setCompanyProfile] = useState<any>(null);
@@ -76,6 +81,26 @@ export default function Reports() {
       toast.error(err.response?.data?.message || "স্টেটমেন্ট লোড করতে ব্যর্থ হয়েছে");
     } finally {
       setLoadingStatement(false);
+    }
+  };
+
+  // সমিতি বিবরণী ফেচ
+  const fetchAssociationReport = async () => {
+    setLoadingAssociation(true);
+    setAssociationData(null);
+    try {
+      const params = new URLSearchParams();
+      if (fromDate) params.append("from", fromDate);
+      if (toDate) params.append("to", toDate);
+      const res = await axios.get(
+        `http://localhost:5000/api/savings/reports/association-income-expense?${params.toString()}`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      setAssociationData(res.data);
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || "বিবরণী লোড করতে ব্যর্থ হয়েছে");
+    } finally {
+      setLoadingAssociation(false);
     }
   };
 
@@ -148,16 +173,24 @@ export default function Reports() {
       <title>ব্যাংক স্টেটমেন্ট — ${member?.name}</title>
       <style>
         *{box-sizing:border-box}body{font-family:Arial,sans-serif;font-size:13px;color:#1e293b;margin:28px 32px}
-        h1{text-align:center;font-size:20px;color:#1e3a5f;margin:0}h2{text-align:center;font-size:14px;color:#334155;margin:4px 0 0}
-        .hdr{text-align:center;border-bottom:2px solid #1e3a5f;padding-bottom:12px;margin-bottom:18px}
+        h1{font-size:20px;color:#1e3a5f;margin:0}h2{font-size:14px;color:#334155;margin:4px 0 0}
+        .hdr{display:flex;align-items:center;justify-content:center;gap:16px;border-bottom:2px solid #1e3a5f;padding-bottom:12px;margin-bottom:18px}
+        .hdr-logo{height:55px;width:55px;object-fit:contain}
+        .hdr-text{text-align:center}
         .mbox{background:#eff6ff;border:1px solid #bfdbfe;border-radius:6px;padding:12px 16px;margin-bottom:20px;display:flex;justify-content:space-between}
         table{width:100%;border-collapse:collapse;font-size:12px}th{background:#f1f5f9;padding:7px 9px;border:1px solid #e2e8f0;font-weight:600;white-space:nowrap}td{padding:6px 9px;border:1px solid #e2e8f0}
         @media print{body{margin:12px}@page{margin:12mm}}
       </style></head><body>
-      <div class="hdr"><h1>${companyProfile?.name || 'সমবায় সমিতি'}</h1><h2>সঞ্চয় ব্যাংক স্টেটমেন্ট</h2>
-        ${companyProfile?.address ? `<div style="font-size:11px;color:#64748b;margin-top:2px;">${companyProfile.address}</div>` : ''}
-        ${companyProfile?.registrationNo ? `<div style="font-size:11px;color:#64748b;">নিবন্ধন নং: ${companyProfile.registrationNo}</div>` : ''}
-        <div style="font-size:11px;color:#64748b;margin-top:3px;">মুদ্রণের তারিখ: ${new Date().toLocaleDateString('bn-BD', { day: '2-digit', month: 'long', year: 'numeric' })}</div></div>
+      <div class="hdr">
+        ${companyProfile?.logo ? `<img src="http://localhost:5000${companyProfile.logo}" class="hdr-logo" alt="Logo"/>` : ''}
+        <div class="hdr-text">
+          <h1>${companyProfile?.name || 'সমবায় সমিতি'}</h1>
+          <h2>সঞ্চয় ব্যাংক স্টেটমেন্ট</h2>
+          ${companyProfile?.address ? `<div style="font-size:11px;color:#64748b;margin-top:2px;">${companyProfile.address}</div>` : ''}
+          ${companyProfile?.registrationNo ? `<div style="font-size:11px;color:#64748b;">নিবন্ধন নং: ${companyProfile.registrationNo}</div>` : ''}
+          <div style="font-size:11px;color:#64748b;margin-top:3px;">মুদ্রণের তারিখ: ${new Date().toLocaleDateString('bn-BD', { day: '2-digit', month: 'long', year: 'numeric' })}</div>
+        </div>
+      </div>
       <div class="mbox">
         <div style="flex:1">
           <div style="font-size:16px;font-weight:700;color:#1e3a5f;">${member?.name}</div>
@@ -173,9 +206,117 @@ export default function Reports() {
     </body></html>`;
   };
 
+  const getAssociationReportHTML = () => {
+    if (!associationData) return "";
+
+    const incomesHtml = associationData.incomes.length === 0
+      ? `<tr><td colspan="2" style="text-align:center;padding:12px;color:#94a3b8;">কোনো আয়ের বিবরণ পাওয়া যায়নি</td></tr>`
+      : associationData.incomes.map((inc: any) => `
+          <tr>
+            <td style="padding:8px 12px;border:1px solid #cbd5e1;">${inc.category}</td>
+            <td style="padding:8px 12px;border:1px solid #cbd5e1;text-align:right;font-weight:600;color:#16a34a;">৳ ${fmt(inc.amount)}</td>
+          </tr>
+        `).join('');
+
+    const expensesHtml = associationData.expenses.length === 0
+      ? `<tr><td colspan="2" style="text-align:center;padding:12px;color:#94a3b8;">কোনো ব্যয়ের বিবরণ পাওয়া যায়নি</td></tr>`
+      : associationData.expenses.map((exp: any) => `
+          <tr>
+            <td style="padding:8px 12px;border:1px solid #cbd5e1;">${exp.category}</td>
+            <td style="padding:8px 12px;border:1px solid #cbd5e1;text-align:right;font-weight:600;color:#dc2626;">৳ ${fmt(exp.amount)}</td>
+          </tr>
+        `).join('');
+
+    const netLabel = associationData.netBalance >= 0 ? "নীট উদ্বৃত্ত (Surplus)" : "নীট ঘাটতি (Deficit)";
+    const netColor = associationData.netBalance >= 0 ? "#16a34a" : "#dc2626";
+
+    return `<!DOCTYPE html><html lang="bn"><head><meta charset="UTF-8"/>
+      <title>সমিতি আয়-ব্যয় বিবরণী</title>
+      <style>
+        *{box-sizing:border-box}body{font-family:Arial,sans-serif;font-size:13px;color:#1e293b;margin:28px 32px}
+        h1{font-size:20px;color:#1e3a5f;margin:0}h2{font-size:14px;color:#334155;margin:4px 0 0}
+        .hdr{display:flex;align-items:center;justify-content:center;gap:16px;border-bottom:2px solid #1e3a5f;padding-bottom:12px;margin-bottom:18px}
+        .hdr-logo{height:55px;width:55px;object-fit:contain}
+        .hdr-text{text-align:center}
+        .grid{display:flex;gap:20px;margin-bottom:20px}
+        .col{flex:1}
+        .table-title{background:#1e3a5f;color:#fff;padding:8px 12px;font-weight:bold;font-size:14px;border-top-left-radius:6px;border-top-right-radius:6px}
+        table{width:100%;border-collapse:collapse;font-size:12px}th{background:#f8fafc;padding:8px 12px;border:1px solid #e2e8f0;font-weight:600;text-align:left}td{padding:8px 12px;border:1px solid #cbd5e1}
+        .summary-box{background:#f8fafc;border:1px solid #cbd5e1;border-radius:6px;padding:16px;margin-top:28px}
+        .summary-row{display:flex;justify-content:space-between;padding:6px 0;font-size:13px;border-bottom:1px dashed #e2e8f0}
+        .summary-row:last-child{border-bottom:none;padding-top:10px;font-size:15px;font-weight:bold}
+        .signatures{display:flex;justify-content:space-between;margin-top:70px;text-align:center;font-size:12px;color:#64748b}
+        .sig-line{border-top:1px solid #cbd5e1;width:150px;padding-top:6px}
+        @media print{body{margin:12px}@page{margin:12mm}}
+      </style></head><body>
+      <div class="hdr">
+        ${companyProfile?.logo ? `<img src="http://localhost:5000${companyProfile.logo}" class="hdr-logo" alt="Logo"/>` : ''}
+        <div class="hdr-text">
+          <h1>${companyProfile?.name || 'সমবায় সমিতি'}</h1>
+          <h2>সমিতি আয়-ব্যয় বিবরণী</h2>
+          ${companyProfile?.address ? `<div style="font-size:11px;color:#64748b;margin-top:2px;">${companyProfile.address}</div>` : ''}
+          <div style="font-size:11px;color:#64748b;margin-top:4px;">
+            বিবরণী সময়কাল: ${fromDate ? fmtDate(fromDate) : 'শুরু'} থেকে ${toDate ? fmtDate(toDate) : 'আজ পর্যন্ত'}
+          </div>
+          <div style="font-size:11px;color:#64748b;margin-top:3px;">মুদ্রণের তারিখ: ${new Date().toLocaleDateString('bn-BD', { day: '2-digit', month: 'long', year: 'numeric' })}</div>
+        </div>
+      </div>
+      <div class="grid">
+        <div class="col">
+          <div class="table-title">আয় সমূহ (Incomes)</div>
+          <table>
+            <thead>
+              <tr>
+                <th>আয়ের খাত (Category)</th>
+                <th style="text-align:right;">টাকার পরিমাণ (Amount)</th>
+              </tr>
+            </thead>
+            <tbody>${incomesHtml}</tbody>
+            <tfoot>
+              <tr style="background:#f8fafc;font-weight:bold;">
+                <td>মোট আয় (Total Income)</td>
+                <td style="text-align:right;color:#16a34a;">৳ ${fmt(associationData.totalIncome)}</td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+        <div class="col">
+          <div class="table-title">ব্যয় সমূহ (Expenses)</div>
+          <table>
+            <thead>
+              <tr>
+                <th>ব্যয়ের খাত (Category)</th>
+                <th style="text-align:right;">টাকার পরিমাণ (Amount)</th>
+              </tr>
+            </thead>
+            <tbody>${expensesHtml}</tbody>
+            <tfoot>
+              <tr style="background:#f8fafc;font-weight:bold;">
+                <td>মোট ব্যয় (Total Expense)</td>
+                <td style="text-align:right;color:#dc2626;">৳ ${fmt(associationData.totalExpense)}</td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+      </div>
+      <div class="summary-box">
+        <div style="font-weight:bold;font-size:14px;color:#1e3a5f;margin-bottom:10px;">আয়-ব্যয় সারসংক্ষেপ (Summary)</div>
+        <div class="summary-row"><span>সর্বমোট আয় (Total Income):</span><span style="color:#16a34a;font-weight:bold;">৳ ${fmt(associationData.totalIncome)}</span></div>
+        <div class="summary-row"><span>সর্বমোট ব্যয় (Total Expense):</span><span style="color:#dc2626;font-weight:bold;">৳ ${fmt(associationData.totalExpense)}</span></div>
+        <div class="summary-row"><span>${netLabel}:</span><span style="color:${netColor};font-size:16px;">৳ ${fmt(associationData.netBalance)}</span></div>
+      </div>
+      <div class="signatures">
+        <div class="sig-line">প্রস্তুতকারীর স্বাক্ষর</div>
+        <div class="sig-line">কোষাধক্ষের স্বাক্ষর</div>
+        <div class="sig-line">সহ-সভাপতির স্বাক্ষর</div>
+        <div class="sig-line">সভাপতির স্বাক্ষর</div>
+      </div>
+    </body></html>`;
+  };
+
   // প্রিন্ট
   const handlePrint = () => {
-    const html = getStatementHTML();
+    const html = activeReportTab === "member" ? getStatementHTML() : getAssociationReportHTML();
     if (!html) return;
 
     const win = window.open('', '_blank', 'width=960,height=750');
@@ -191,13 +332,16 @@ export default function Reports() {
 
   // পিডিএফ ডাউনলোড
   const handleDownloadPDF = () => {
-    const html = getStatementHTML();
+    const html = activeReportTab === "member" ? getStatementHTML() : getAssociationReportHTML();
     if (!html) return;
 
-    const memberName = statement.member?.name || 'Statement';
+    const reportName = activeReportTab === "member"
+      ? `Statement_${statement.member?.name || 'Statement'}`
+      : `Income_Expense_Report`;
+
     const opt = {
       margin: 10,
-      filename: `Statement_${memberName}_${new Date().getTime()}.pdf`,
+      filename: `${reportName}_${new Date().getTime()}.pdf`,
       image: { type: 'jpeg' as const, quality: 0.98 },
       html2canvas: { scale: 2, useCORS: true },
       jsPDF: { unit: 'mm' as const, format: 'a4' as const, orientation: 'portrait' as const }
@@ -223,75 +367,118 @@ export default function Reports() {
       {/* হেডার */}
       <div className="flex justify-between items-center">
         <div>
-          <h2 className="text-2xl font-bold text-slate-800">সঞ্চয় স্টেটমেন্ট</h2>
-          <p className="text-sm text-slate-500 mt-0.5">সদস্যের জমা ও উত্তোলনের ব্যাংক স্টেটমেন্ট</p>
+          <h2 className="text-2xl font-bold text-slate-800">
+            {activeReportTab === "member" ? "সঞ্চয় স্টেটমেন্ট" : "সমিতি আয়-ব্যয় বিবরণী"}
+          </h2>
+          <p className="text-sm text-slate-500 mt-0.5">
+            {activeReportTab === "member"
+              ? "সদস্যের জমা ও উত্তোলনের ব্যাংক স্টেটমেন্ট"
+              : "সমিতির সার্বিক আয় ও ব্যয়ের বিবরণী"}
+          </p>
         </div>
         <div className="flex gap-3">
-          {statement && (
-            <>
-              <button
-                onClick={handlePrint}
-                className="flex items-center gap-2 bg-slate-700 hover:bg-slate-800 text-white px-4 py-2 rounded-lg font-medium transition whitespace-nowrap"
-              >
-                <Printer size={16} />
-                প্রিন্ট
-              </button>
-              <button
-                onClick={handleDownloadPDF}
-                className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg font-medium transition whitespace-nowrap"
-              >
-                <Download size={16} />
-                ডাউনলোড
-              </button>
-            </>
-          )}
+          {((activeReportTab === "member" && statement) ||
+            (activeReportTab === "association" && associationData)) && (
+              <>
+                <button
+                  onClick={handlePrint}
+                  className="flex items-center gap-2 bg-slate-700 hover:bg-slate-800 text-white px-4 py-2 rounded-lg font-medium transition whitespace-nowrap"
+                >
+                  <Printer size={16} />
+                  প্রিন্ট
+                </button>
+                <button
+                  onClick={handleDownloadPDF}
+                  className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg font-medium transition whitespace-nowrap"
+                >
+                  <Download size={16} />
+                  ডাউনলোড
+                </button>
+              </>
+            )}
         </div>
+      </div>
+
+      {/* রিপোর্ট ক্যাটাগরি ট্যাব */}
+      <div className="flex border-b border-slate-200">
+        <button
+          onClick={() => {
+            setActiveReportTab("member");
+            setSelectedMember(null);
+            setMemberSearch("");
+            setStatement(null);
+            setAssociationData(null);
+          }}
+          className={`px-6 py-3 font-semibold text-sm transition-all border-b-2 ${activeReportTab === "member"
+            ? "border-blue-600 text-blue-600"
+            : "border-transparent text-slate-500 hover:text-slate-800"
+            }`}
+        >
+          সদস্য স্টেটমেন্ট
+        </button>
+        <button
+          onClick={() => {
+            setActiveReportTab("association");
+            setSelectedMember(null);
+            setMemberSearch("");
+            setStatement(null);
+            setAssociationData(null);
+          }}
+          className={`px-6 py-3 font-semibold text-sm transition-all border-b-2 ${activeReportTab === "association"
+            ? "border-blue-600 text-blue-600"
+            : "border-transparent text-slate-500 hover:text-slate-800"
+            }`}
+        >
+          সমিতি আয়-ব্যয় বিবরণী
+        </button>
       </div>
 
       {/* ফিল্টার প্যানেল */}
       <div className="bg-white rounded-xl shadow-sm border border-slate-100 p-5">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
-          {/* সদস্য নির্বাচন */}
-          <div className="md:col-span-2 relative">
-            <label className="block text-sm font-medium text-slate-700 mb-1.5">সদস্য নির্বাচন করুন</label>
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-              <input
-                type="text"
-                value={selectedMember ? `${selectedMember.name} (${selectedMember.memberId})` : memberSearch}
-                onChange={e => {
-                  setMemberSearch(e.target.value);
-                  setSelectedMember(null);
-                  setShowDropdown(true);
-                }}
-                onFocus={() => setShowDropdown(true)}
-                placeholder="নাম বা আইডি লিখুন..."
-                className="w-full pl-9 pr-8 py-2.5 border rounded-lg outline-none focus:ring-2 focus:ring-blue-500 text-sm"
-              />
-              <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-            </div>
-            {showDropdown && !selectedMember && filteredMembers.length > 0 && (
-              <div className="absolute z-20 top-full left-0 right-0 mt-1 bg-white border border-slate-200 rounded-lg shadow-lg max-h-52 overflow-y-auto">
-                {loadingMembers ? (
-                  <div className="px-4 py-3 text-sm text-slate-500">লোড হচ্ছে...</div>
-                ) : filteredMembers.map(m => (
-                  <button
-                    key={m.id}
-                    className="w-full text-left px-4 py-2.5 hover:bg-blue-50 text-sm border-b border-slate-50 last:border-0"
-                    onClick={() => {
-                      setSelectedMember(m);
-                      setMemberSearch("");
-                      setShowDropdown(false);
-                      setStatement(null);
-                    }}
-                  >
-                    <span className="font-medium text-slate-800">{m.name}</span>
-                    <span className="text-slate-400 ml-2 text-xs">{m.memberId}</span>
-                  </button>
-                ))}
+        <div className={`grid grid-cols-1 gap-4 items-end ${activeReportTab === "member" ? "md:grid-cols-4" : "md:grid-cols-2"}`}>
+          {/* সদস্য নির্বাচন (শুধুমাত্র সদস্য স্টেটমেন্ট ট্যাবে থাকবে) */}
+          {activeReportTab === "member" && (
+            <div className="md:col-span-2 relative">
+              <label className="block text-sm font-medium text-slate-700 mb-1.5">সদস্য নির্বাচন করুন</label>
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                <input
+                  type="text"
+                  value={selectedMember ? `${selectedMember.name} (${selectedMember.memberId})` : memberSearch}
+                  onChange={e => {
+                    setMemberSearch(e.target.value);
+                    setSelectedMember(null);
+                    setShowDropdown(true);
+                  }}
+                  onFocus={() => setShowDropdown(true)}
+                  placeholder="নাম বা আইডি লিখুন..."
+                  className="w-full pl-9 pr-8 py-2.5 border rounded-lg outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                />
+                <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
               </div>
-            )}
-          </div>
+              {showDropdown && !selectedMember && filteredMembers.length > 0 && (
+                <div className="absolute z-20 top-full left-0 right-0 mt-1 bg-white border border-slate-200 rounded-lg shadow-lg max-h-52 overflow-y-auto">
+                  {loadingMembers ? (
+                    <div className="px-4 py-3 text-sm text-slate-500">লোড হচ্ছে...</div>
+                  ) : filteredMembers.map(m => (
+                    <button
+                      key={m.id}
+                      className="w-full text-left px-4 py-2.5 hover:bg-blue-50 text-sm border-b border-slate-50 last:border-0"
+                      onClick={() => {
+                        setSelectedMember(m);
+                        setMemberSearch("");
+                        setShowDropdown(false);
+                        setStatement(null);
+                      }}
+                    >
+                      <span className="font-medium text-slate-800">{m.name}</span>
+                      <span className="text-slate-400 ml-2 text-xs">{m.memberId}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
 
           {/* তারিখ ফ্রম */}
           <div>
@@ -318,16 +505,25 @@ export default function Reports() {
 
         <div className="mt-4 flex gap-3">
           <button
-            onClick={fetchStatement}
-            disabled={!selectedMember || loadingStatement}
+            onClick={activeReportTab === "member" ? fetchStatement : fetchAssociationReport}
+            disabled={activeReportTab === "member" ? (!selectedMember || loadingStatement) : loadingAssociation}
             className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-white px-5 py-2.5 rounded-lg font-medium transition text-sm"
           >
             <FileText size={16} />
-            {loadingStatement ? "লোড হচ্ছে..." : "স্টেটমেন্ট দেখুন"}
+            {activeReportTab === "member"
+              ? (loadingStatement ? "লোড হচ্ছে..." : "স্টেটমেন্ট দেখুন")
+              : (loadingAssociation ? "লোড হচ্ছে..." : "বিবরণী দেখুন")}
           </button>
-          {(selectedMember || fromDate || toDate) && (
+          {(selectedMember || fromDate || toDate || statement || associationData) && (
             <button
-              onClick={() => { setSelectedMember(null); setMemberSearch(""); setFromDate(""); setToDate(""); setStatement(null); }}
+              onClick={() => {
+                setSelectedMember(null);
+                setMemberSearch("");
+                setFromDate("");
+                setToDate("");
+                setStatement(null);
+                setAssociationData(null);
+              }}
               className="px-4 py-2.5 text-slate-600 border border-slate-200 hover:bg-slate-50 rounded-lg text-sm transition"
             >
               রিসেট
@@ -336,20 +532,29 @@ export default function Reports() {
         </div>
       </div>
 
-      {/* ——— স্টেটমেন্ট ——— */}
-      {loadingStatement && (
+      {/* ——— সদস্য স্টেটমেন্ট রিপোর্ট ——— */}
+      {activeReportTab === "member" && loadingStatement && (
         <div className="bg-white rounded-xl p-16 text-center text-slate-400 shadow-sm border border-slate-100">
           <div className="animate-spin w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full mx-auto mb-3" />
           স্টেটমেন্ট প্রস্তুত হচ্ছে...
         </div>
       )}
 
-      {!loadingStatement && statement && (
+      {activeReportTab === "member" && !loadingStatement && statement && (
         <div ref={printRef}>
           {/* ——— প্রিন্ট হেডার (স্ক্রিনে লুকানো) ——— */}
-          <div className="org-header hidden print:block text-center border-b-2 border-blue-900 pb-3 mb-4">
-            <div className="org-name text-xl font-bold text-blue-900">{companyProfile?.name || "সমবায় সমিতি"}</div>
-            <div className="report-title">সঞ্চয় ব্যাংক স্টেটমেন্ট</div>
+          <div className="org-header hidden print:flex items-center justify-center gap-4 border-b-2 border-blue-900 pb-3 mb-4 text-center">
+            {companyProfile?.logo && (
+              <img
+                src={`http://localhost:5000${companyProfile.logo}`}
+                alt="Logo"
+                className="h-14 w-14 object-contain"
+              />
+            )}
+            <div>
+              <div className="org-name text-xl font-bold text-blue-900">{companyProfile?.name || "সমবায় সমিতি"}</div>
+              <div className="report-title text-sm font-semibold text-slate-600">সঞ্চয় ব্যাংক স্টেটমেন্ট</div>
+            </div>
           </div>
 
           {/* সদস্য তথ্য কার্ড */}
@@ -502,11 +707,167 @@ export default function Reports() {
         </div>
       )}
 
-      {!loadingStatement && !statement && !selectedMember && (
+      {/* ——— সমিতি আয়-ব্যয় বিবরণী রিপোর্ট ——— */}
+      {activeReportTab === "association" && loadingAssociation && (
+        <div className="bg-white rounded-xl p-16 text-center text-slate-400 shadow-sm border border-slate-100">
+          <div className="animate-spin w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full mx-auto mb-3" />
+          বিবরণী প্রস্তুত হচ্ছে...
+        </div>
+      )}
+
+      {activeReportTab === "association" && !loadingAssociation && associationData && (
+        <div ref={printRef} className="space-y-6">
+          {/* ——— প্রিন্ট হেডার (স্ক্রিনে লুকানো) ——— */}
+          <div className="org-header hidden print:flex items-center justify-center gap-4 border-b-2 border-blue-900 pb-3 mb-4 text-center">
+            {companyProfile?.logo && (
+              <img
+                src={`http://localhost:5000${companyProfile.logo}`}
+                alt="Logo"
+                className="h-14 w-14 object-contain"
+              />
+            )}
+            <div>
+              <div className="org-name text-xl font-bold text-blue-900">{companyProfile?.name || "সমবায় সমিতি"}</div>
+              <div className="report-title text-sm font-semibold text-slate-600">সমিতি আয়-ব্যয় বিবরণী</div>
+              <div className="text-slate-500 text-xs mt-1">
+                সময়কাল: {fromDate ? fmtDate(fromDate) : "শুরু"} থেকে {toDate ? fmtDate(toDate) : "আজ পর্যন্ত"}
+              </div>
+            </div>
+          </div>
+
+          {/* Two Sided Grid */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Income Card */}
+            <div className="bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden">
+              <div className="bg-green-600 text-white px-6 py-4">
+                <h3 className="font-bold text-lg">আয় সমূহ (Incomes)</h3>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm text-left">
+                  <thead className="bg-slate-50 text-slate-600 border-b border-slate-200">
+                    <tr>
+                      <th className="px-6 py-3 font-semibold">আয়ের খাত (Category)</th>
+                      <th className="px-6 py-3 font-semibold text-right text-green-700">পরিমাণ (Amount)</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {associationData.incomes.length === 0 ? (
+                      <tr>
+                        <td colSpan={2} className="text-center py-8 text-slate-400">
+                          কোনো আয়ের বিবরণ পাওয়া যায়নি
+                        </td>
+                      </tr>
+                    ) : (
+                      associationData.incomes.map((inc: any, idx: number) => (
+                        <tr key={idx} className={idx % 2 === 0 ? "" : "bg-slate-50/40"}>
+                          <td className="px-6 py-4 text-slate-700 font-medium">{inc.category}</td>
+                          <td className="px-6 py-4 text-right font-bold text-green-600">
+                            ৳ {fmt(inc.amount)}
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                  {associationData.incomes.length > 0 && (
+                    <tfoot className="border-t-2 border-slate-300 bg-slate-100">
+                      <tr>
+                        <td className="px-6 py-3 font-bold text-slate-700">মোট আয় (Total Income):</td>
+                        <td className="px-6 py-3 text-right font-bold text-green-700">
+                          ৳ {fmt(associationData.totalIncome)}
+                        </td>
+                      </tr>
+                    </tfoot>
+                  )}
+                </table>
+              </div>
+            </div>
+
+            {/* Expense Card */}
+            <div className="bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden">
+              <div className="bg-red-500 text-white px-6 py-4">
+                <h3 className="font-bold text-lg">ব্যয় সমূহ (Expenses)</h3>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm text-left">
+                  <thead className="bg-slate-50 text-slate-600 border-b border-slate-200">
+                    <tr>
+                      <th className="px-6 py-3 font-semibold">ব্যয়ের খাত (Category)</th>
+                      <th className="px-6 py-3 font-semibold text-right text-red-600">পরিমাণ (Amount)</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {associationData.expenses.length === 0 ? (
+                      <tr>
+                        <td colSpan={2} className="text-center py-8 text-slate-400">
+                          কোনো ব্যয়ের বিবরণ পাওয়া যায়নি
+                        </td>
+                      </tr>
+                    ) : (
+                      associationData.expenses.map((exp: any, idx: number) => (
+                        <tr key={idx} className={idx % 2 === 0 ? "" : "bg-slate-50/40"}>
+                          <td className="px-6 py-4 text-slate-700 font-medium">{exp.category}</td>
+                          <td className="px-6 py-4 text-right font-bold text-red-500">
+                            ৳ {fmt(exp.amount)}
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                  {associationData.expenses.length > 0 && (
+                    <tfoot className="border-t-2 border-slate-300 bg-slate-100">
+                      <tr>
+                        <td className="px-6 py-3 font-bold text-slate-700">মোট ব্যয় (Total Expense):</td>
+                        <td className="px-6 py-3 text-right font-bold text-red-700">
+                          ৳ {fmt(associationData.totalExpense)}
+                        </td>
+                      </tr>
+                    </tfoot>
+                  )}
+                </table>
+              </div>
+            </div>
+          </div>
+
+          {/* Summary Box */}
+          <div className="bg-slate-50 border border-slate-200 rounded-xl p-6 shadow-inner">
+            <h3 className="text-lg font-bold text-slate-800 border-b pb-3 mb-4">আয়-ব্যয় সারসংক্ষেপ (Summary)</h3>
+            <div className="space-y-3 text-sm">
+              <div className="flex justify-between items-center py-2 border-b border-slate-200/60">
+                <span className="text-slate-600 font-medium">সর্বমোট আয় (Total Income)</span>
+                <span className="text-lg font-bold text-green-600">৳ {fmt(associationData.totalIncome)}</span>
+              </div>
+              <div className="flex justify-between items-center py-2 border-b border-slate-200/60">
+                <span className="text-slate-600 font-medium">সর্বমোট ব্যয় (Total Expense)</span>
+                <span className="text-lg font-bold text-red-500">৳ {fmt(associationData.totalExpense)}</span>
+              </div>
+              <div className="flex justify-between items-center pt-2">
+                <span className="text-slate-800 font-bold text-base">
+                  {associationData.netBalance >= 0 ? "নিট উদ্বৃত্ত (Net Surplus)" : "নিট ঘাটতি (Net Deficit)"}
+                </span>
+                <span className={`text-xl font-black ${associationData.netBalance >= 0 ? "text-green-600" : "text-red-500"
+                  }`}>
+                  ৳ {fmt(associationData.netBalance)}
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Fallback empty blocks */}
+      {activeReportTab === "member" && !loadingStatement && !statement && !selectedMember && (
         <div className="bg-white rounded-xl p-16 text-center text-slate-400 shadow-sm border border-slate-100">
           <FileText size={48} className="mx-auto mb-3 text-slate-300" />
           <p className="text-lg font-medium">একজন সদস্য নির্বাচন করুন</p>
           <p className="text-sm mt-1">সদস্য নির্বাচন করে স্টেটমেন্ট দেখুন বাটনে ক্লিক করুন</p>
+        </div>
+      )}
+
+      {activeReportTab === "association" && !loadingAssociation && !associationData && (
+        <div className="bg-white rounded-xl p-16 text-center text-slate-400 shadow-sm border border-slate-100">
+          <FileText size={48} className="mx-auto mb-3 text-slate-300" />
+          <p className="text-lg font-medium">সমিতি আয়-ব্যয় বিবরণী</p>
+          <p className="text-sm mt-1">তারিখ সীমা নির্ধারণ করে বিবরণী দেখুন বাটনে ক্লিক করুন</p>
         </div>
       )}
     </div>

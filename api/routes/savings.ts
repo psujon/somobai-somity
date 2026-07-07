@@ -1,6 +1,7 @@
 import express from "express";
 import prisma from "../db.js";
 import { authenticateToken } from "../middleware/auth.js";
+import axios from "axios";
 
 const router = express.Router();
 
@@ -69,6 +70,34 @@ router.post("/", async (req, res) => {
   }
 });
 
+async function getNextVoucherRef(tx: any) {
+  const lastVouchers = await tx.voucher.findMany({
+    where: {
+      voucherRef: {
+        startsWith: "V",
+      },
+    },
+    select: {
+      voucherRef: true,
+    },
+  });
+
+  let maxNum = 1000000;
+  for (const v of lastVouchers) {
+    if (v.voucherRef) {
+      const match = v.voucherRef.match(/^V(\d+)$/);
+      if (match) {
+        const num = parseInt(match[1]);
+        if (num > maxNum) {
+          maxNum = num;
+        }
+      }
+    }
+  }
+
+  return `V${maxNum + 1}`;
+}
+
 // Deposit to savings account
 router.post("/:id/deposit", async (req, res) => {
   const { id } = req.params;
@@ -88,6 +117,8 @@ router.post("/:id/deposit", async (req, res) => {
 
   try {
     const transaction = await prisma.$transaction(async (tx) => {
+      const voucherRef = await getNextVoucherRef(tx);
+
       // ১. ট্রানজেকশন রেকর্ড তৈরি
       const txRecord = await tx.savingsTransaction.create({
         data: {
@@ -98,6 +129,7 @@ router.post("/:id/deposit", async (req, res) => {
           depositMonth: depositMonth || null,
           voucherNo: voucherNo || null,
           remarks: remarks || null,
+          voucherRef,
         },
       });
 
@@ -105,7 +137,16 @@ router.post("/:id/deposit", async (req, res) => {
       const account = await tx.savingsAccount.update({
         where: { id },
         data: { balance: { increment: numAmount } },
-        select: { accountNo: true, memberId: true },
+        select: {
+          accountNo: true,
+          memberId: true,
+          member: {
+            select: {
+              name: true,
+              phone: true
+            }
+          }
+        },
       });
 
       // ৩. ইনকাম ভাউচার স্বয়ংক্রিয়ভাবে তৈরি
@@ -123,6 +164,7 @@ router.post("/:id/deposit", async (req, res) => {
             ? `Deposit to ${account.accountNo} | ${depositMonth || ""} | ${remarks}`
             : `Deposit to savings account ${account.accountNo}`,
           date: transactionDate ? new Date(transactionDate) : new Date(),
+          voucherRef,
         },
       });
 
@@ -154,6 +196,13 @@ router.post("/:id/deposit", async (req, res) => {
     });
 
     res.json(transaction);
+
+    // SMS পাঠানোর চেষ্টা করা হচ্ছে (অ্যাসিনক্রোনাসলি)
+    const phone = (transaction.account as any).member?.phone;
+    if (phone) {
+      sendDepositSms(phone, (transaction.account as any).member.name, numAmount, transaction.account.accountNo, depositMonth)
+        .catch(err => console.error("SMS notification send failed:", err));
+    }
   } catch (error: any) {
     console.error("Deposit error:", error);
     res.status(500).json({ message: error?.message || "Server error during deposit" });
@@ -175,6 +224,67 @@ router.get("/monthly-summary/:memberId", async (req, res) => {
   } catch (error) {
     console.error("Monthly summary error:", error);
     res.status(500).json({ message: "Error fetching monthly summary" });
+  }
+});
+
+// GET /api/savings/reports/association-income-expense — সমিতি আয়-ব্যয় বিবরণী
+router.get("/reports/association-income-expense", async (req, res) => {
+  const { from, to } = req.query;
+
+  try {
+    const vouchers = await prisma.voucher.findMany({
+      where: {
+        ...(from || to
+          ? {
+            date: {
+              ...(from ? { gte: new Date(from as string) } : {}),
+              ...(to ? { lte: new Date(new Date(to as string).setHours(23, 59, 59)) } : {}),
+            },
+          }
+          : {}),
+      },
+      select: {
+        type: true,
+        category: true,
+        amount: true,
+      },
+    });
+
+    const incomeMap: Record<string, number> = {};
+    const expenseMap: Record<string, number> = {};
+    let totalIncome = 0;
+    let totalExpense = 0;
+
+    for (const v of vouchers) {
+      if (v.type === "INCOME") {
+        incomeMap[v.category] = (incomeMap[v.category] || 0) + v.amount;
+        totalIncome += v.amount;
+      } else if (v.type === "EXPENSE") {
+        expenseMap[v.category] = (expenseMap[v.category] || 0) + v.amount;
+        totalExpense += v.amount;
+      }
+    }
+
+    const incomes = Object.entries(incomeMap).map(([category, amount]) => ({
+      category,
+      amount,
+    }));
+
+    const expenses = Object.entries(expenseMap).map(([category, amount]) => ({
+      category,
+      amount,
+    }));
+
+    res.json({
+      incomes,
+      expenses,
+      totalIncome,
+      totalExpense,
+      netBalance: totalIncome - totalExpense,
+    });
+  } catch (error) {
+    console.error("Association income-expense error:", error);
+    res.status(500).json({ message: "Error fetching income-expense report" });
   }
 });
 
@@ -289,10 +399,24 @@ router.put("/transactions/:id", async (req, res) => {
         data: { balance: { increment: diff } }
       });
 
-      // ৩. ভাউচার আপডেট (voucherNo দিয়ে খুঁজে)
-      if (oldTx.voucherNo) {
+      // ৩. ভাউচার আপডেট (voucherRef বা voucherNo দিয়ে খুঁজে)
+      if (oldTx.voucherRef) {
         await tx.voucher.updateMany({
-          where: { voucherNo: oldTx.voucherNo },
+          where: { voucherRef: oldTx.voucherRef },
+          data: {
+            amount: newAmount,
+            date: transactionDate ? new Date(transactionDate) : (oldTx.transactionDate || new Date()),
+            description: remarks ?? undefined
+          }
+        });
+      } else if (oldTx.voucherNo) {
+        // Fallback for old transactions to minimize collateral damage
+        await tx.voucher.updateMany({
+          where: {
+            voucherNo: oldTx.voucherNo,
+            savingsAccountId: oldTx.savingsAccountId,
+            amount: oldTx.amount
+          },
           data: {
             amount: newAmount,
             date: transactionDate ? new Date(transactionDate) : (oldTx.transactionDate || new Date()),
@@ -365,9 +489,18 @@ router.delete("/transactions/:id", async (req, res) => {
         data: { balance: { decrement: oldTx.amount } }
       });
 
-      // ২. ভাউচার ডিলেট
-      if (oldTx.voucherNo) {
-        await tx.voucher.deleteMany({ where: { voucherNo: oldTx.voucherNo } });
+      // ২. ভাউচার ডিলেট (voucherRef বা voucherNo দিয়ে খুঁজে)
+      if (oldTx.voucherRef) {
+        await tx.voucher.deleteMany({ where: { voucherRef: oldTx.voucherRef } });
+      } else if (oldTx.voucherNo) {
+        // Fallback for old transactions
+        await tx.voucher.deleteMany({
+          where: {
+            voucherNo: oldTx.voucherNo,
+            savingsAccountId: oldTx.savingsAccountId,
+            amount: oldTx.amount
+          }
+        });
       }
 
       // ৩. মান্থলি সামারি কমাও
@@ -390,5 +523,59 @@ router.delete("/transactions/:id", async (req, res) => {
     res.status(500).json({ message: error?.message || "Error deleting transaction" });
   }
 });
+
+async function sendDepositSms(phone: string, memberName: string, amount: number, accountNo: string, depositMonth?: string | null, retryCount = 3) {
+  // Format phone number to 8801xxxxxxxxx format
+  let cleanPhone = phone.trim().replace(/\+/g, "").replace(/\s/g, "").replace(/-/g, "");
+  if (cleanPhone.startsWith("01")) {
+    cleanPhone = "88" + cleanPhone;
+  }
+
+  // Format depositMonth to ShortMonth-Year if present
+  let prefixText = "";
+  if (depositMonth) {
+    const [year, month] = depositMonth.split("-");
+    const monthNamesEn = [
+      "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+      "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"
+    ];
+    const monthIndex = parseInt(month) - 1;
+    if (monthIndex >= 0 && monthIndex < 12) {
+      prefixText = `${monthNamesEn[monthIndex]}-${year} `;
+    }
+  }
+
+  // Bengali/English SMS text
+  const message = `${prefixText} deposited Tk.${amount}. Future Value Properties`;
+
+  for (let attempt = 1; attempt <= retryCount; attempt++) {
+    try {
+      const payload = new URLSearchParams({
+        api_key: "2h2Ajgzt3Umrtp8jA7TGvrYadl08FvrDHuMsil9A",
+        to: cleanPhone,
+        msg: message
+      });
+
+      const response = await axios.post("https://api.sms.net.bd/sendsms", payload);
+      const errorCode = response.data?.error;
+
+      if (errorCode == 0) {
+        console.log(`SMS sent successfully to ${cleanPhone} on attempt ${attempt}`);
+        return; // Success!
+      } else {
+        console.log(`SMS attempt ${attempt} failed with error code ${errorCode}: ${response.data?.msg || response.data?.message || "Unknown error"}`);
+      }
+    } catch (error: any) {
+      console.log(`SMS attempt ${attempt} network error:`, error.message || error);
+    }
+
+    if (attempt < retryCount) {
+      console.log(`Retrying SMS send in 2 seconds... (Attempt ${attempt + 1}/${retryCount})`);
+      await new Promise(resolve => setTimeout(resolve, 2000));
+    }
+  }
+
+  console.log(`Failed to send SMS to ${cleanPhone} after ${retryCount} attempts.`);
+}
 
 export default router;

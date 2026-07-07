@@ -10,7 +10,9 @@ router.get("/summary", async (req, res) => {
   try {
     const now = new Date();
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
     const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const endOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
 
     const [
       totalMembers,
@@ -21,9 +23,14 @@ router.get("/summary", async (req, res) => {
       activeLoanCount,
       todayDeposits,
       monthDeposits,
-      recentTransactions,
-      monthlySavings,
-      monthlyLoans,
+      recentIncome,
+      recentExpense,
+      monthlyIncome,
+      monthlyExpense,
+      totalIncomeVouchers,
+      totalExpenseVouchers,
+      memberDepositVouchers,
+      monthExpenseVouchers,
     ] = await Promise.all([
       // মোট সদস্য
       prisma.member.count(),
@@ -48,7 +55,7 @@ router.get("/summary", async (req, res) => {
         _sum: { amount: true },
         where: {
           type: "DEPOSIT",
-          transactionDate: { gte: startOfToday },
+          transactionDate: { gte: startOfToday, lte: endOfToday },
         },
       }),
 
@@ -57,46 +64,85 @@ router.get("/summary", async (req, res) => {
         _sum: { amount: true },
         where: {
           type: "DEPOSIT",
-          transactionDate: { gte: startOfMonth },
+          transactionDate: { gte: startOfMonth, lte: endOfMonth },
         },
       }),
 
-      // সাম্প্রতিক ১০টি ট্রানজেকশন
-      prisma.savingsTransaction.findMany({
-        take: 10,
-        orderBy: { transactionDate: "desc" },
+      // সাম্প্রতিক ৫টি ইনকাম ভাউচার
+      prisma.voucher.findMany({
+        take: 5,
+        where: { type: "INCOME" },
+        orderBy: { date: "desc" },
         include: {
-          savingsAccount: {
-            select: {
-              accountNo: true,
-              member: { select: { name: true, memberId: true } },
-            },
-          },
-        },
+          member: { select: { name: true, memberId: true } },
+          savingsAccount: { select: { accountNo: true } }
+        }
       }),
 
-      // গত ৬ মাসের মাসিক সঞ্চয় জমা (চার্টের জন্য)
+      // সাম্প্রতিক ৫টি ব্যয় ভাউচার
+      prisma.voucher.findMany({
+        take: 5,
+        where: { type: "EXPENSE" },
+        orderBy: { date: "desc" },
+        include: {
+          member: { select: { name: true, memberId: true } },
+          savingsAccount: { select: { accountNo: true } }
+        }
+      }),
+
+      // গত ৬ মাসের মাসিক আয় (চার্টের জন্য)
       prisma.$queryRaw`
         SELECT
-          DATE_FORMAT(transactionDate, '%Y-%m') AS month,
-          SUM(amount) AS totalSavings
-        FROM SavingsTransaction
-        WHERE type = 'DEPOSIT'
-          AND transactionDate >= DATE_SUB(NOW(), INTERVAL 6 MONTH)
+          DATE_FORMAT(date, '%Y-%m') AS month,
+          SUM(amount) AS totalIncome
+        FROM voucher
+        WHERE type = 'INCOME'
+          AND date >= DATE_SUB(NOW(), INTERVAL 6 MONTH)
         GROUP BY month
         ORDER BY month ASC
       `,
 
-      // গত ৬ মাসের মাসিক ঋণ বিতরণ (চার্টের জন্য)
+      // গত ৬ মাসের মাসিক ব্যয় (চার্টের জন্য)
       prisma.$queryRaw`
         SELECT
-          DATE_FORMAT(issueDate, '%Y-%m') AS month,
-          SUM(amount) AS totalLoans
-        FROM Loan
-        WHERE issueDate >= DATE_SUB(NOW(), INTERVAL 6 MONTH)
+          DATE_FORMAT(date, '%Y-%m') AS month,
+          SUM(amount) AS totalExpense
+        FROM voucher
+        WHERE type = 'EXPENSE'
+          AND date >= DATE_SUB(NOW(), INTERVAL 6 MONTH)
         GROUP BY month
         ORDER BY month ASC
       `,
+
+      // মোট আয়
+      prisma.voucher.aggregate({
+        _sum: { amount: true },
+        where: { type: "INCOME" }
+      }),
+
+      // মোট ব্যয়
+      prisma.voucher.aggregate({
+        _sum: { amount: true },
+        where: { type: "EXPENSE" }
+      }),
+
+      // মোট সদস্য আয় (সঞ্চয় জমা)
+      prisma.voucher.aggregate({
+        _sum: { amount: true },
+        where: {
+          type: "INCOME",
+          category: "Savings Deposit"
+        }
+      }),
+
+      // চলতি মাসের ব্যয়
+      prisma.voucher.aggregate({
+        _sum: { amount: true },
+        where: {
+          type: "EXPENSE",
+          date: { gte: startOfMonth, lte: endOfMonth }
+        }
+      })
     ]);
 
     // মাসিক চার্ট ডেটা merge করা
@@ -107,22 +153,27 @@ router.get("/summary", async (req, res) => {
       "10": "অক্টো", "11": "নভে", "12": "ডিসে",
     };
 
-    const savingsMap = new Map(
-      (monthlySavings as any[]).map((r) => [r.month, Number(r.totalSavings)])
+    const incomeMap = new Map(
+      (monthlyIncome as any[]).map((r) => [r.month, Number(r.totalIncome)])
     );
-    const loanMap = new Map(
-      (monthlyLoans as any[]).map((r) => [r.month, Number(r.totalLoans)])
+    const expenseMap = new Map(
+      (monthlyExpense as any[]).map((r) => [r.month, Number(r.totalExpense)])
     );
 
     const allMonths = Array.from(
-      new Set([...savingsMap.keys(), ...loanMap.keys()])
+      new Set([...incomeMap.keys(), ...expenseMap.keys()])
     ).sort();
 
     const chartData = allMonths.map((m) => ({
       name: monthNames[m.split("-")[1]] || m,
-      savings: savingsMap.get(m) || 0,
-      loan: loanMap.get(m) || 0,
+      income: incomeMap.get(m) || 0,
+      expense: expenseMap.get(m) || 0,
     }));
+
+    const totalIncomeVal = totalIncomeVouchers._sum.amount || 0;
+    const totalExpenseVal = totalExpenseVouchers._sum.amount || 0;
+    const totalMemberDepositVal = memberDepositVouchers._sum.amount || 0;
+    const runningMonthExpenseVal = monthExpenseVouchers._sum.amount || 0;
 
     res.json({
       stats: {
@@ -137,9 +188,15 @@ router.get("/summary", async (req, res) => {
         outstandingLoan:
           (totalLoanDisbursed._sum.amount || 0) -
           (totalLoanPaid._sum.totalPaid || 0),
+        netBalance: totalIncomeVal - totalExpenseVal,
+        totalMemberDeposit: totalMemberDepositVal,
+        othersIncome: totalIncomeVal - totalMemberDepositVal,
+        totalExpenseAmount: totalExpenseVal,
+        runningMonthExpense: runningMonthExpenseVal,
       },
       chartData,
-      recentTransactions,
+      recentIncome,
+      recentExpense,
     });
   } catch (error) {
     console.error("Dashboard error:", error);

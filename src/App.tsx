@@ -14,16 +14,28 @@ import MemberPositions from "./pages/Settings/MemberPositions";
 import Users from "./pages/Settings/Users";
 import DatabaseBackup from "./pages/Settings/DatabaseBackup";
 import AccountCategories from "./pages/Settings/AccountCategories";
+import MemberDashboard from "./pages/MemberDashboard";
 import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 
 // Temporary placeholder pages
 
-const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
+const AdminProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const { user, loading } = useAuth();
 
   if (loading) return <div className="min-h-screen flex items-center justify-center">লোড হচ্ছে...</div>;
   if (!user) return <Navigate to="/login" />;
+  if (user.role === "MEMBER") return <Navigate to="/member-dashboard" />;
+
+  return <>{children}</>;
+};
+
+const MemberProtectedRoute = ({ children }: { children: React.ReactNode }) => {
+  const { user, loading } = useAuth();
+
+  if (loading) return <div className="min-h-screen flex items-center justify-center">লোড হচ্ছে...</div>;
+  if (!user) return <Navigate to="/login" />;
+  if (user.role !== "MEMBER") return <Navigate to="/" />;
 
   return <>{children}</>;
 };
@@ -34,19 +46,23 @@ function App() {
       <Routes>
         <Route path="/login" element={<Login />} />
 
-        <Route path="/" element={<ProtectedRoute><DashboardLayout /></ProtectedRoute>}>
+        {/* Member Dashboard Route */}
+        <Route path="/member-dashboard" element={<MemberProtectedRoute><MemberDashboard /></MemberProtectedRoute>} />
+
+        {/* Admin/Staff Dashboard Routes */}
+        <Route path="/" element={<AdminProtectedRoute><DashboardLayout /></AdminProtectedRoute>}>
           <Route index element={<Dashboard />} />
           <Route path="members" element={<Members />} />
           <Route path="savings" element={<Savings />} />
           <Route path="loans" element={<Loans />} />
           <Route path="accounts" element={<Accounts />} />
           <Route path="reports" element={<Reports />} />
+          <Route path="backup" element={<DatabaseBackup />} />
           <Route path="settings">
             <Route path="profile" element={<CompanyProfile />} />
             <Route path="member-types" element={<MemberTypes />} />
             <Route path="member-positions" element={<MemberPositions />} />
             <Route path="users" element={<Users />} />
-            <Route path="backup" element={<DatabaseBackup />} />
             <Route path="account-categories" element={<AccountCategories />} />
             <Route index element={<Navigate to="profile" replace />} />
           </Route>
