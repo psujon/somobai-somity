@@ -2,8 +2,13 @@ import express from "express";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import prisma from "../db.js";
+import { sendSms } from "../utils/sms.js";
 
 const router = express.Router();
+
+// Temporary store for login OTPs
+const otpStore = new Map<string, { otp: string; expiresAt: Date }>();
+
 
 router.post("/login", async (req, res) => {
   const { email, password } = req.body;
@@ -33,7 +38,7 @@ router.post("/login", async (req, res) => {
       const now = new Date();
       // BD সময় এডজাস্টমেন্ট (GMT+6)
       const bdTimeObj = new Date(now.getTime() + (6 * 60 * 60 * 1000));
-      
+
       const bdTimeStr = now.toLocaleString("en-GB", {
         timeZone: "Asia/Dhaka",
         day: "2-digit", month: "2-digit", year: "numeric",
@@ -78,7 +83,7 @@ router.post("/logout", async (req, res) => {
   try {
     const now = new Date();
     const bdTimeObj = new Date(now.getTime() + (6 * 60 * 60 * 1000));
-    
+
     const bdTimeStr = now.toLocaleString("en-GB", {
       timeZone: "Asia/Dhaka",
       day: "2-digit", month: "2-digit", year: "numeric",
@@ -128,9 +133,9 @@ router.get("/me", async (req, res) => {
       where: { id: decoded.id },
       select: { id: true, name: true, email: true, role: true },
     });
-    
+
     if (!user) return res.status(404).json({ message: "User not found" });
-    
+
     res.json(user);
   } catch (err) {
     res.status(403).json({ message: "Invalid Token" });
@@ -155,6 +160,60 @@ router.post("/member-login", async (req, res) => {
       return res.status(400).json({ message: "এই ফোন নম্বরে কোনো সদস্য খুঁজে পাওয়া যায়নি।" });
     }
 
+    // Generate 4-digit OTP code
+    const otp = Math.floor(1000 + Math.random() * 9000).toString();
+    const expiresAt = new Date(Date.now() + 5 * 60 * 1000); // 5 minutes expiration
+
+    // Store in-memory
+    otpStore.set(trimmedPhone, { otp, expiresAt });
+
+    // Print to console so developers can log in without SMS credits
+    console.log(`[OTP Verification] Generated OTP for ${trimmedPhone}: ${otp} (Expires at ${expiresAt.toLocaleTimeString()})`);
+
+    // Send via SMS
+    const message = `আপনার লগইন কোডটি হলো: ${otp}`;
+    await sendSms(trimmedPhone, message);
+
+    res.json({ message: "ওটিপি কোড পাঠানো হয়েছে" });
+  } catch (error) {
+    console.error("Member login error:", error);
+    res.status(500).json({ message: "সার্ভার এরর" });
+  }
+});
+
+router.post("/verify-otp", async (req, res) => {
+  const { phone, otp } = req.body;
+  if (!phone || !otp) {
+    return res.status(400).json({ message: "ফোন নম্বর এবং ওটিপি কোড প্রয়োজন" });
+  }
+
+  try {
+    const trimmedPhone = phone.trim();
+    const trimmedOtp = otp.trim();
+
+    const storedData = otpStore.get(trimmedPhone);
+
+    if (!storedData || storedData.otp !== trimmedOtp) {
+      return res.status(400).json({ message: "ভুল ওটিপি কোড।" });
+    }
+
+    if (new Date() > storedData.expiresAt) {
+      otpStore.delete(trimmedPhone);
+      return res.status(400).json({ message: "ওটিপি কোডের মেয়াদ শেষ হয়ে গেছে।" });
+    }
+
+    // OTP verified, clear it
+    otpStore.delete(trimmedPhone);
+
+    // Get member details
+    const member = await prisma.member.findFirst({
+      where: { phone: trimmedPhone }
+    });
+
+    if (!member) {
+      return res.status(400).json({ message: "সদস্য পাওয়া যায়নি।" });
+    }
+
     const token = jwt.sign(
       { id: trimmedPhone, email: member.email || "", role: "MEMBER" },
       process.env.JWT_SECRET || "super-secret-jwt-key",
@@ -171,7 +230,7 @@ router.post("/member-login", async (req, res) => {
       },
     });
   } catch (error) {
-    console.error("Member login error:", error);
+    console.error("OTP verification error:", error);
     res.status(500).json({ message: "সার্ভার এরর" });
   }
 });

@@ -1,0 +1,14 @@
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+  RewriteBase /
+
+  # 1. Exclude the /api path from React Router rewrites
+  # This prevents requests to /api/... from being caught by index.html
+  RewriteRule ^api/ - [L]
+
+  # 2. React Router SPA Rewrite Rule
+  # If the requested file or directory does not exist, rewrite to index.html
+  RewriteCond %{REQUEST_FILENAME} !-f
+  RewriteCond %{REQUEST_FILENAME} !-d
+  RewriteRule . /index.html [L]
+</IfModule>

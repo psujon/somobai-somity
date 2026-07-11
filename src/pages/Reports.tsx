@@ -181,25 +181,28 @@ export default function Reports() {
         table{width:100%;border-collapse:collapse;font-size:12px}th{background:#f1f5f9;padding:7px 9px;border:1px solid #e2e8f0;font-weight:600;white-space:nowrap}td{padding:6px 9px;border:1px solid #e2e8f0}
         @media print{body{margin:12px}@page{margin:12mm}}
       </style></head><body>
-      <div class="hdr">
-        ${companyProfile?.logo ? `<img src="${process.env.API_HOST}${companyProfile.logo}" class="hdr-logo" alt="Logo"/>` : ''}
-        <div class="hdr-text">
-          <h1>${companyProfile?.name || 'সমবায় সমিতি'}</h1>
-          <h2>সঞ্চয় ব্যাংক স্টেটমেন্ট</h2>
-          ${companyProfile?.address ? `<div style="font-size:11px;color:#64748b;margin-top:2px;">${companyProfile.address}</div>` : ''}
-          ${companyProfile?.registrationNo ? `<div style="font-size:11px;color:#64748b;">নিবন্ধন নং: ${companyProfile.registrationNo}</div>` : ''}
-          <div style="font-size:11px;color:#64748b;margin-top:3px;">মুদ্রণের তারিখ: ${new Date().toLocaleDateString('bn-BD', { day: '2-digit', month: 'long', year: 'numeric' })}</div>
-        </div>
-      </div>
+      <table style="width:100%; border-collapse:collapse; border-bottom:2px solid #1e3a5f; margin-bottom:18px; padding-bottom:12px;">
+        <tr>
+          ${companyProfile?.logo ? `
+          <td style="width:70px; vertical-align:middle; border:none; padding:0;">
+            <img src="${process.env.API_HOST}${companyProfile.logo}" style="height:60px; width:60px; object-fit:contain; display:block;" alt="Logo"/>
+          </td>` : ''}
+          <td style="vertical-align:middle; text-align:center; border:none; padding:0;">
+            <div style="${companyProfile?.logo ? 'margin-right:70px;' : ''}">
+              <h1 style="font-size:20px; color:#1e3a5f; margin:0;">${companyProfile?.name || 'সমবায় সমিতি'}</h1>
+              <h2 style="font-size:14px; color:#334155; margin:4px 0 0;">সঞ্চয় ব্যাংক স্টেটমেন্ট</h2>
+              ${companyProfile?.address ? `<div style="font-size:11px; color:#64748b; margin-top:2px;">${companyProfile.address}</div>` : ''}
+              ${companyProfile?.registrationNo ? `<div style="font-size:11px; color:#64748b;">নিবন্ধন নং: ${companyProfile.registrationNo}</div>` : ''}
+              <div style="font-size:11px; color:#64748b; margin-top:3px; text-align:right;">মুদ্রণের তারিখ: ${new Date().toLocaleDateString('bn-BD', { day: '2-digit', month: 'long', year: 'numeric' })}</div>
+            </div>
+          </td>
+        </tr>
+      </table>
       <div class="mbox">
         <div style="flex:1">
           <div style="font-size:16px;font-weight:700;color:#1e3a5f;">${member?.name}</div>
           <div style="color:#64748b;font-size:12px;">সদস্য আইডি: ${member?.memberId}</div>
           ${member?.phone ? `<div style="color:#64748b;font-size:12px;">ফোন: ${member.phone}</div>` : ''}
-        </div>
-        <div style="text-align:right">
-          <div style="font-size:12px;color:#64748b;">মোট হিসাব</div>
-          <div style="font-size:18px;font-weight:700;color:#1e3a5f;">${accounts.length} টি</div>
         </div>
       </div>
       ${accountSections}
@@ -249,18 +252,25 @@ export default function Reports() {
         .sig-line{border-top:1px solid #cbd5e1;width:150px;padding-top:6px}
         @media print{body{margin:12px}@page{margin:12mm}}
       </style></head><body>
-      <div class="hdr">
-        ${companyProfile?.logo ? `<img src="${process.env.API_HOST}${companyProfile.logo}" class="hdr-logo" alt="Logo"/>` : ''}
-        <div class="hdr-text">
-          <h1>${companyProfile?.name || 'সমবায় সমিতি'}</h1>
-          <h2>সমিতি আয়-ব্যয় বিবরণী</h2>
-          ${companyProfile?.address ? `<div style="font-size:11px;color:#64748b;margin-top:2px;">${companyProfile.address}</div>` : ''}
-          <div style="font-size:11px;color:#64748b;margin-top:4px;">
-            বিবরণী সময়কাল: ${fromDate ? fmtDate(fromDate) : 'শুরু'} থেকে ${toDate ? fmtDate(toDate) : 'আজ পর্যন্ত'}
-          </div>
-          <div style="font-size:11px;color:#64748b;margin-top:3px;">মুদ্রণের তারিখ: ${new Date().toLocaleDateString('bn-BD', { day: '2-digit', month: 'long', year: 'numeric' })}</div>
-        </div>
-      </div>
+      <table style="width:100%; border-collapse:collapse; border-bottom:2px solid #1e3a5f; margin-bottom:18px; padding-bottom:12px;">
+        <tr>
+          ${companyProfile?.logo ? `
+          <td style="width:70px; vertical-align:middle; border:none; padding:0;">
+            <img src="${process.env.API_HOST}${companyProfile.logo}" style="height:60px; width:60px; object-fit:contain; display:block;" alt="Logo"/>
+          </td>` : ''}
+          <td style="vertical-align:middle; text-align:center; border:none; padding:0;">
+            <div style="${companyProfile?.logo ? 'margin-right:70px;' : ''}">
+              <h1 style="font-size:20px; color:#1e3a5f; margin:0;">${companyProfile?.name || 'সমবায় সমিতি'}</h1>
+              ${companyProfile?.address ? `<div style="font-size:11px; color:#64748b; margin-top:2px;">${companyProfile.address}</div>` : ''}
+              <h2 style="font-size:14px; color:#334155; margin:4px 0 0;">সমিতি আয়-ব্যয় বিবরণী</h2>
+              <div style="font-size:11px; color:#64748b; margin-top:4px;">
+                বিবরণী সময়কাল: ${fromDate ? fmtDate(fromDate) : 'শুরু'} থেকে ${toDate ? fmtDate(toDate) : 'আজ পর্যন্ত'}
+              </div>
+              <div style="font-size:11px; color:#64748b; margin-top:3px; text-align:right">মুদ্রণের তারিখ: ${new Date().toLocaleDateString('bn-BD', { day: '2-digit', month: 'long', year: 'numeric' })}</div>
+            </div>
+          </td>
+        </tr>
+      </table>
       <div class="grid">
         <div class="col">
           <div class="table-title">আয় সমূহ (Incomes)</div>
@@ -543,16 +553,19 @@ export default function Reports() {
       {activeReportTab === "member" && !loadingStatement && statement && (
         <div ref={printRef}>
           {/* ——— প্রিন্ট হেডার (স্ক্রিনে লুকানো) ——— */}
-          <div className="org-header hidden print:flex items-center justify-center gap-4 border-b-2 border-blue-900 pb-3 mb-4 text-center">
+          <div className="org-header hidden print:block relative text-center border-b-2 border-blue-900 pb-3 mb-4">
             {companyProfile?.logo && (
               <img
                 src={`${process.env.API_HOST}${companyProfile.logo}`}
                 alt="Logo"
-                className="h-14 w-14 object-contain"
+                className="absolute left-0 top-0 h-14 w-14 object-contain"
               />
             )}
-            <div>
+            <div className={`inline-block ${companyProfile?.logo ? "pr-14" : ""}`}>
               <div className="org-name text-xl font-bold text-blue-900">{companyProfile?.name || "সমবায় সমিতি"}</div>
+              {companyProfile?.address && (
+                <div className="text-xs text-slate-500 mt-0.5">{companyProfile.address}</div>
+              )}
               <div className="report-title text-sm font-semibold text-slate-600">সঞ্চয় ব্যাংক স্টেটমেন্ট</div>
             </div>
           </div>
@@ -576,8 +589,8 @@ export default function Reports() {
                 )}
               </div>
               <div className="text-right">
-                <p className="text-blue-200 text-sm">মোট হিসাব</p>
-                <p className="text-2xl font-bold">{statement.accounts.length} টি</p>
+                {/* <p className="text-blue-200 text-sm">মোট হিসাব</p>
+                <p className="text-2xl font-bold">{statement.accounts.length} টি</p> */}
                 {(fromDate || toDate) && (
                   <p className="text-blue-200 text-xs mt-1">
                     {fromDate ? fmtDate(fromDate) : "শুরু"} — {toDate ? fmtDate(toDate) : "এখন"}
@@ -718,17 +731,20 @@ export default function Reports() {
       {activeReportTab === "association" && !loadingAssociation && associationData && (
         <div ref={printRef} className="space-y-6">
           {/* ——— প্রিন্ট হেডার (স্ক্রিনে লুকানো) ——— */}
-          <div className="org-header hidden print:flex items-center justify-center gap-4 border-b-2 border-blue-900 pb-3 mb-4 text-center">
+          <div className="org-header hidden print:block relative text-center border-b-2 border-blue-900 pb-3 mb-4">
             {companyProfile?.logo && (
               <img
                 src={`${process.env.API_HOST}${companyProfile.logo}`}
                 alt="Logo"
-                className="h-14 w-14 object-contain"
+                className="absolute left-0 top-0 h-14 w-14 object-contain"
               />
             )}
-            <div>
+            <div className={`inline-block ${companyProfile?.logo ? "pr-14" : ""}`}>
               <div className="org-name text-xl font-bold text-blue-900">{companyProfile?.name || "সমবায় সমিতি"}</div>
               <div className="report-title text-sm font-semibold text-slate-600">সমিতি আয়-ব্যয় বিবরণী</div>
+              {companyProfile?.address && (
+                <div className="text-xs text-slate-500 mt-0.5">{companyProfile.address}</div>
+              )}
               <div className="text-slate-500 text-xs mt-1">
                 সময়কাল: {fromDate ? fmtDate(fromDate) : "শুরু"} থেকে {toDate ? fmtDate(toDate) : "আজ পর্যন্ত"}
               </div>
