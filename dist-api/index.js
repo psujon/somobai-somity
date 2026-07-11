@@ -1,4 +1,5 @@
 import express from "express";
+import fs from "fs";
 import cors from "cors";
 import dotenv from "dotenv";
 import authRoutes from "./routes/auth.js";
@@ -17,6 +18,10 @@ import memberPortalRoutes from "./routes/memberPortal.js";
 import { startBackupScheduler } from "./utils/backupScheduler.js";
 dotenv.config();
 startBackupScheduler();
+// Ensure uploads directory exists on startup
+if (!fs.existsSync("public/uploads")) {
+    fs.mkdirSync("public/uploads", { recursive: true });
+}
 const app = express();
 app.use(cors({
     origin: "*",

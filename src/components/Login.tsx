@@ -56,10 +56,7 @@ export default function Login() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-slate-50 p-4">
       <div className="max-w-md w-full bg-white rounded-2xl shadow-xl overflow-hidden">
-        <div className="bg-blue-600 p-8 text-center">
-          <h1 className="text-3xl font-bold text-white mb-2">সমবায় সমিতি</h1>
-          <p className="text-blue-100">ম্যানেজমেন্ট সফটওয়্যার</p>
-        </div>
+
 
         <div className="p-8">
           <h2 className="text-2xl font-bold text-gray-800 mb-6 text-center">
@@ -111,7 +108,7 @@ export default function Login() {
                     onChange={(e) => setEmail(e.target.value)}
                     required
                     className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition"
-                    placeholder="admin@coop.com"
+                    placeholder=""
                   />
                 </div>
 
@@ -123,7 +120,7 @@ export default function Login() {
                     onChange={(e) => setPassword(e.target.value)}
                     required
                     className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition"
-                    placeholder="******"
+                    placeholder=""
                   />
                 </div>
               </>
@@ -136,15 +133,15 @@ export default function Login() {
             >
               {loading
                 ? (isMember
-                    ? (showOtpScreen
-                        ? "ওটিপি ভেরিফাই হচ্ছে..."
-                        : "ওটিপি পাঠানো হচ্ছে...")
-                    : "লগইন হচ্ছে...")
+                  ? (showOtpScreen
+                    ? "ওটিপি ভেরিফাই হচ্ছে..."
+                    : "ওটিপি পাঠানো হচ্ছে...")
+                  : "লগইন হচ্ছে...")
                 : (isMember
-                    ? (showOtpScreen
-                        ? "ভেরিফাই ওটিপি"
-                        : "ওটিপি পাঠান")
-                    : "লগইন")}
+                  ? (showOtpScreen
+                    ? "ভেরিফাই ওটিপি"
+                    : "ওটিপি পাঠান")
+                  : "লগইন")}
             </button>
 
             <div className="text-center pt-2">

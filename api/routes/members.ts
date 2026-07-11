@@ -3,6 +3,7 @@ import prisma from "../db.js";
 import { authenticateToken } from "../middleware/auth.js";
 import multer from "multer";
 import path from "path";
+import fs from "fs";
 
 const router = express.Router();
 
@@ -42,6 +43,16 @@ router.post("/", upload.single("photo"), async (req, res) => {
     const shortCode = profiles.length > 0 && profiles[0].shortCode ? profiles[0].shortCode : "SSM";
     const memberId = `${shortCode}${String(count + 1).padStart(3, '0')}`;
 
+    let photoPath = null;
+    if (req.file) {
+      const ext = path.extname(req.file.originalname);
+      const newFilename = `${memberId}${ext}`;
+      const oldPath = req.file.path;
+      const newPath = path.join("public/uploads/", newFilename);
+      fs.renameSync(oldPath, newPath);
+      photoPath = `/uploads/${newFilename}`;
+    }
+
     const member = await prisma.member.create({
       data: {
         memberId,
@@ -50,7 +61,7 @@ router.post("/", upload.single("photo"), async (req, res) => {
         email: email && email.trim() !== '' ? email.trim() : null,
         nid: nid && nid.trim() !== '' ? nid.trim() : null,
         address: address || null,
-        photo,
+        photo: photoPath,
         type,
         position,
         joinDate: joinDate ? new Date(joinDate) : undefined,
@@ -73,6 +84,38 @@ router.put("/:id", upload.single("photo"), async (req, res) => {
   const photo = req.file ? `/uploads/${req.file.filename}` : undefined;
 
   try {
+    const existingMember = await prisma.member.findUnique({
+      where: { id },
+      select: { memberId: true, photo: true }
+    });
+    if (!existingMember) {
+      return res.status(404).json({ message: "Member not found" });
+    }
+    const memberId = existingMember.memberId;
+
+    let photoPath = undefined;
+    if (req.file) {
+      const ext = path.extname(req.file.originalname);
+      const newFilename = `${memberId}${ext}`;
+      const oldPath = req.file.path;
+      const newPath = path.join("public/uploads/", newFilename);
+      
+      // Delete old photo if it exists
+      if (existingMember.photo) {
+        const oldPhotoPath = path.join("public", existingMember.photo);
+        if (fs.existsSync(oldPhotoPath)) {
+          try {
+            fs.unlinkSync(oldPhotoPath);
+          } catch (e) {
+            console.error("Failed to delete old photo:", e);
+          }
+        }
+      }
+
+      fs.renameSync(oldPath, newPath);
+      photoPath = `/uploads/${newFilename}`;
+    }
+
     const updateData: any = {
       name,
       phone,
@@ -84,8 +127,8 @@ router.put("/:id", upload.single("photo"), async (req, res) => {
       joinDate: joinDate ? new Date(joinDate) : undefined,
     };
 
-    if (photo) {
-      updateData.photo = photo;
+    if (photoPath) {
+      updateData.photo = photoPath;
     }
 
     const member = await prisma.member.update({

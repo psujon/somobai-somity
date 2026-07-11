@@ -172,14 +172,15 @@ export default function Reports() {
     return `<!DOCTYPE html><html lang="bn"><head><meta charset="UTF-8"/>
       <title>ব্যাংক স্টেটমেন্ট — ${member?.name}</title>
       <style>
-        *{box-sizing:border-box}body{font-family:Arial,sans-serif;font-size:13px;color:#1e293b;margin:28px 32px}
+        *{box-sizing:border-box}
+        body{width:800px;font-family:Arial,sans-serif;font-size:13px;color:#1e293b;margin:28px auto;padding:10px}
         h1{font-size:20px;color:#1e3a5f;margin:0}h2{font-size:14px;color:#334155;margin:4px 0 0}
         .hdr{display:flex;align-items:center;justify-content:center;gap:16px;border-bottom:2px solid #1e3a5f;padding-bottom:12px;margin-bottom:18px}
         .hdr-logo{height:55px;width:55px;object-fit:contain}
         .hdr-text{text-align:center}
         .mbox{background:#eff6ff;border:1px solid #bfdbfe;border-radius:6px;padding:12px 16px;margin-bottom:20px;display:flex;justify-content:space-between}
         table{width:100%;border-collapse:collapse;font-size:12px}th{background:#f1f5f9;padding:7px 9px;border:1px solid #e2e8f0;font-weight:600;white-space:nowrap}td{padding:6px 9px;border:1px solid #e2e8f0}
-        @media print{body{margin:12px}@page{margin:12mm}}
+        @media print{body{width:800px;margin:12px}@page{size:A4 portrait;margin:12mm}}
       </style></head><body>
       <table style="width:100%; border-collapse:collapse; border-bottom:2px solid #1e3a5f; margin-bottom:18px; padding-bottom:12px;">
         <tr>
@@ -236,7 +237,8 @@ export default function Reports() {
     return `<!DOCTYPE html><html lang="bn"><head><meta charset="UTF-8"/>
       <title>সমিতি আয়-ব্যয় বিবরণী</title>
       <style>
-        *{box-sizing:border-box}body{font-family:Arial,sans-serif;font-size:13px;color:#1e293b;margin:28px 32px}
+        *{box-sizing:border-box}
+        body{width:800px;font-family:Arial,sans-serif;font-size:13px;color:#1e293b;margin:28px auto;padding:10px}
         h1{font-size:20px;color:#1e3a5f;margin:0}h2{font-size:14px;color:#334155;margin:4px 0 0}
         .hdr{display:flex;align-items:center;justify-content:center;gap:16px;border-bottom:2px solid #1e3a5f;padding-bottom:12px;margin-bottom:18px}
         .hdr-logo{height:55px;width:55px;object-fit:contain}
@@ -250,7 +252,7 @@ export default function Reports() {
         .summary-row:last-child{border-bottom:none;padding-top:10px;font-size:15px;font-weight:bold}
         .signatures{display:flex;justify-content:space-between;margin-top:70px;text-align:center;font-size:12px;color:#64748b}
         .sig-line{border-top:1px solid #cbd5e1;width:150px;padding-top:6px}
-        @media print{body{margin:12px}@page{margin:12mm}}
+        @media print{body{width:800px;margin:12px}@page{size:A4 portrait;margin:12mm}}
       </style></head><body>
       <table style="width:100%; border-collapse:collapse; border-bottom:2px solid #1e3a5f; margin-bottom:18px; padding-bottom:12px;">
         <tr>
@@ -271,56 +273,78 @@ export default function Reports() {
           </td>
         </tr>
       </table>
-      <div class="grid">
-        <div class="col">
-          <div class="table-title">আয় সমূহ (Incomes)</div>
-          <table>
-            <thead>
-              <tr>
-                <th>আয়ের খাত (Category)</th>
-                <th style="text-align:right;">টাকার পরিমাণ (Amount)</th>
-              </tr>
-            </thead>
-            <tbody>${incomesHtml}</tbody>
-            <tfoot>
-              <tr style="background:#f8fafc;font-weight:bold;">
-                <td>মোট আয় (Total Income)</td>
-                <td style="text-align:right;color:#16a34a;">৳ ${fmt(associationData.totalIncome)}</td>
-              </tr>
-            </tfoot>
-          </table>
-        </div>
-        <div class="col">
-          <div class="table-title">ব্যয় সমূহ (Expenses)</div>
-          <table>
-            <thead>
-              <tr>
-                <th>ব্যয়ের খাত (Category)</th>
-                <th style="text-align:right;">টাকার পরিমাণ (Amount)</th>
-              </tr>
-            </thead>
-            <tbody>${expensesHtml}</tbody>
-            <tfoot>
-              <tr style="background:#f8fafc;font-weight:bold;">
-                <td>মোট ব্যয় (Total Expense)</td>
-                <td style="text-align:right;color:#dc2626;">৳ ${fmt(associationData.totalExpense)}</td>
-              </tr>
-            </tfoot>
-          </table>
-        </div>
-      </div>
+      <!-- Table-based Grid layout for side-by-side columns to ensure compatibility with html2pdf/html2canvas -->
+      <table style="width:100%; border-collapse:collapse; border:none; margin-bottom:20px; table-layout:fixed;">
+        <tr>
+          <!-- Income Column -->
+          <td style="width:50%; vertical-align:top; border:none; padding:0 10px 0 0;">
+            <div class="table-title">আয় সমূহ (Incomes)</div>
+            <table style="width:100%; border-collapse:collapse;">
+              <thead>
+                <tr>
+                  <th style="padding:8px 12px;border:1px solid #cbd5e1;background:#f8fafc;font-weight:600;text-align:left;">আয়ের খাত (Category)</th>
+                  <th style="padding:8px 12px;border:1px solid #cbd5e1;background:#f8fafc;font-weight:600;text-align:right;">টাকার পরিমাণ (Amount)</th>
+                </tr>
+              </thead>
+              <tbody>${incomesHtml}</tbody>
+              <tfoot>
+                <tr style="background:#f8fafc;font-weight:bold;">
+                  <td style="padding:8px 12px;border:1px solid #cbd5e1;">মোট আয় (Total Income)</td>
+                  <td style="padding:8px 12px;border:1px solid #cbd5e1;text-align:right;color:#16a34a;">৳ ${fmt(associationData.totalIncome)}</td>
+                </tr>
+              </tfoot>
+            </table>
+          </td>
+          <!-- Expense Column -->
+          <td style="width:50%; vertical-align:top; border:none; padding:0 0 0 10px;">
+            <div class="table-title">ব্যয় সমূহ (Expenses)</div>
+            <table style="width:100%; border-collapse:collapse;">
+              <thead>
+                <tr>
+                  <th style="padding:8px 12px;border:1px solid #cbd5e1;background:#f8fafc;font-weight:600;text-align:left;">ব্যয়ের খাত (Category)</th>
+                  <th style="padding:8px 12px;border:1px solid #cbd5e1;background:#f8fafc;font-weight:600;text-align:right;">টাকার পরিমাণ (Amount)</th>
+                </tr>
+              </thead>
+              <tbody>${expensesHtml}</tbody>
+              <tfoot>
+                <tr style="background:#f8fafc;font-weight:bold;">
+                  <td style="padding:8px 12px;border:1px solid #cbd5e1;">মোট ব্যয় (Total Expense)</td>
+                  <td style="padding:8px 12px;border:1px solid #cbd5e1;text-align:right;color:#dc2626;">৳ ${fmt(associationData.totalExpense)}</td>
+                </tr>
+              </tfoot>
+            </table>
+          </td>
+        </tr>
+      </table>
+
+      <!-- Summary Box with Table layout -->
       <div class="summary-box">
         <div style="font-weight:bold;font-size:14px;color:#1e3a5f;margin-bottom:10px;">আয়-ব্যয় সারসংক্ষেপ (Summary)</div>
-        <div class="summary-row"><span>সর্বমোট আয় (Total Income):</span><span style="color:#16a34a;font-weight:bold;">৳ ${fmt(associationData.totalIncome)}</span></div>
-        <div class="summary-row"><span>সর্বমোট ব্যয় (Total Expense):</span><span style="color:#dc2626;font-weight:bold;">৳ ${fmt(associationData.totalExpense)}</span></div>
-        <div class="summary-row"><span>${netLabel}:</span><span style="color:${netColor};font-size:16px;">৳ ${fmt(associationData.netBalance)}</span></div>
+        <table style="width:100%; border-collapse:collapse; border:none;">
+          <tr style="border-bottom:1px dashed #cbd5e1;">
+            <td style="padding:6px 0; border:none; text-align:left;">সর্বমোট আয় (Total Income):</td>
+            <td style="padding:6px 0; border:none; text-align:right; color:#16a34a; font-weight:bold;">৳ ${fmt(associationData.totalIncome)}</td>
+          </tr>
+          <tr style="border-bottom:1px dashed #cbd5e1;">
+            <td style="padding:6px 0; border:none; text-align:left;">সর্বমোট ব্যয় (Total Expense):</td>
+            <td style="padding:6px 0; border:none; text-align:right; color:#dc2626; font-weight:bold;">৳ ${fmt(associationData.totalExpense)}</td>
+          </tr>
+          <tr>
+            <td style="padding:10px 0 6px 0; border:none; text-align:left; font-size:15px; font-weight:bold;">${netLabel}:</td>
+            <td style="padding:10px 0 6px 0; border:none; text-align:right; color:${netColor}; font-size:16px; font-weight:bold;">৳ ${fmt(associationData.netBalance)}</td>
+          </tr>
+        </table>
       </div>
-      <div class="signatures">
-        <div class="sig-line">প্রস্তুতকারীর স্বাক্ষর</div>
-        <div class="sig-line">কোষাধক্ষের স্বাক্ষর</div>
-        <div class="sig-line">সহ-সভাপতির স্বাক্ষর</div>
-        <div class="sig-line">সভাপতির স্বাক্ষর</div>
-      </div>
+
+      <!-- Signatures with Table layout -->
+      <table style="width:100%; border-collapse:collapse; border:none; margin-top:70px; text-align:center; font-size:12px; color:#64748b;">
+        <tr>
+          <td style="width:25%; border:none; padding:0;"><div class="sig-line">প্রস্তুতকারীর স্বাক্ষর</div></td>
+          <td style="width:25%; border:none; padding:0;"><div class="sig-line">কোষাধক্ষের স্বাক্ষর</div></td>
+          <td style="width:25%; border:none; padding:0;"><div class="sig-line">সহ-সভাপতির স্বাক্ষর</div></td>
+          <td style="width:25%; border:none; padding:0;"><div class="sig-line">সভাপতির স্বাক্ষর</div></td>
+        </tr>
+      </table>
     </body></html>`;
   };
 
@@ -353,7 +377,7 @@ export default function Reports() {
       margin: 10,
       filename: `${reportName}_${new Date().getTime()}.pdf`,
       image: { type: 'jpeg' as const, quality: 0.98 },
-      html2canvas: { scale: 2, useCORS: true },
+      html2canvas: { scale: 2, useCORS: true, windowWidth: 800 },
       jsPDF: { unit: 'mm' as const, format: 'a4' as const, orientation: 'portrait' as const }
     };
 
