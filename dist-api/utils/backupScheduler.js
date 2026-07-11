@@ -59,7 +59,42 @@ export async function performBackupAndEmail() {
         console.error("[Backup Scheduler] Error sending backup email:", error);
         // Do not throw so that backup generation itself is still considered successful
     }
+    try {
+        pruneOldBackups();
+    }
+    catch (pruneErr) {
+        console.error("[Backup Scheduler] Error pruning old backups:", pruneErr);
+    }
     return { filepath, filename };
+}
+export function pruneOldBackups() {
+    const backupDir = path.join(process.cwd(), "backups");
+    if (!fs.existsSync(backupDir))
+        return;
+    const files = fs.readdirSync(backupDir)
+        .filter(file => file.endsWith('.sql'))
+        .map(file => {
+        const filePath = path.join(backupDir, file);
+        const stats = fs.statSync(filePath);
+        return {
+            name: file,
+            path: filePath,
+            time: stats.mtime.getTime()
+        };
+    })
+        .sort((a, b) => b.time - a.time); // newest first
+    if (files.length > 3) {
+        const filesToDelete = files.slice(3);
+        for (const file of filesToDelete) {
+            try {
+                fs.unlinkSync(file.path);
+                console.log(`[Backup Pruner] Deleted old backup: ${file.name}`);
+            }
+            catch (err) {
+                console.error(`[Backup Pruner] Failed to delete old backup ${file.name}:`, err);
+            }
+        }
+    }
 }
 export function startBackupScheduler() {
     const targetHour = 17; // 17:00 (05:00 PM)

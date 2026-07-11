@@ -3,7 +3,8 @@ import { authenticateToken } from "../middleware/auth.js";
 import mysqldumpPkg from "mysqldump";
 import path from "path";
 import fs from "fs";
-import { parseDatabaseUrl } from "../utils/backupScheduler.js";
+import { parseDatabaseUrl, pruneOldBackups } from "../utils/backupScheduler.js";
+import { sendBackupEmail } from "../utils/email.js";
 
 const mysqldump = (mysqldumpPkg as any).default || mysqldumpPkg;
 
@@ -34,8 +35,18 @@ router.post("/", (req, res) => {
         database: dbConfig.database,
       },
       dumpToFile: filepath,
-    }).then(() => {
-      res.json({ message: "Backup successful", filename, path: filepath });
+    }).then(async () => {
+      try {
+        await sendBackupEmail(filepath, filename);
+      } catch (emailErr) {
+        console.error("Error sending manual backup email:", emailErr);
+      }
+      try {
+        pruneOldBackups();
+      } catch (pruneErr) {
+        console.error("Error pruning old backups:", pruneErr);
+      }
+      res.json({ message: "Backup successful and email sent", filename, path: filepath });
     }).catch(error => {
       console.error("Backup error:", error);
       res.status(500).json({ message: "Backup failed." });
