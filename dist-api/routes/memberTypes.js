@@ -6,7 +6,7 @@ router.use(authenticateToken);
 // Get all member types
 router.get("/", async (req, res) => {
     try {
-        const types = await prisma.$queryRaw `SELECT * FROM MemberType ORDER BY createdAt DESC`;
+        const types = await prisma.$queryRaw `SELECT * FROM membertype ORDER BY createdAt DESC`;
         res.json(types);
     }
     catch (error) {
@@ -17,12 +17,12 @@ router.get("/", async (req, res) => {
 router.post("/", async (req, res) => {
     const { name } = req.body;
     try {
-        const existing = await prisma.$queryRaw `SELECT * FROM MemberType WHERE name = ${name}`;
+        const existing = await prisma.$queryRaw `SELECT * FROM membertype WHERE name = ${name}`;
         if (existing.length > 0)
             return res.status(400).json({ message: "Member type already exists" });
         const id = "mtype_" + Date.now().toString(36) + Math.random().toString(36).substr(2, 5);
-        await prisma.$executeRaw `INSERT INTO MemberType (id, name, createdAt, updatedAt) VALUES (${id}, ${name}, NOW(), NOW())`;
-        const newType = await prisma.$queryRaw `SELECT * FROM MemberType WHERE id = ${id}`;
+        await prisma.$executeRaw `INSERT INTO membertype (id, name, createdAt, updatedAt) VALUES (${id}, ${name}, NOW(), NOW())`;
+        const newType = await prisma.$queryRaw `SELECT * FROM membertype WHERE id = ${id}`;
         res.status(201).json(newType[0]);
     }
     catch (error) {
@@ -34,8 +34,8 @@ router.put("/:id", async (req, res) => {
     const { id } = req.params;
     const { name } = req.body;
     try {
-        await prisma.$executeRaw `UPDATE MemberType SET name = ${name}, updatedAt = NOW() WHERE id = ${id}`;
-        const updated = await prisma.$queryRaw `SELECT * FROM MemberType WHERE id = ${id}`;
+        await prisma.$executeRaw `UPDATE membertype SET name = ${name}, updatedAt = NOW() WHERE id = ${id}`;
+        const updated = await prisma.$queryRaw `SELECT * FROM membertype WHERE id = ${id}`;
         res.json(updated[0]);
     }
     catch (error) {
@@ -49,7 +49,7 @@ router.put("/:id", async (req, res) => {
 router.delete("/:id", async (req, res) => {
     const { id } = req.params;
     try {
-        await prisma.$executeRaw `DELETE FROM MemberType WHERE id = ${id}`;
+        await prisma.$executeRaw `DELETE FROM membertype WHERE id = ${id}`;
         res.json({ message: "Member type deleted successfully" });
     }
     catch (error) {

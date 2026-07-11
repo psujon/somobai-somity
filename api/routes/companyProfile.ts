@@ -18,7 +18,7 @@ const upload = multer({ storage });
 // Get company profile
 router.get("/", async (req, res) => {
   try {
-    const profiles: any[] = await prisma.$queryRaw`SELECT * FROM CompanyProfile LIMIT 1`;
+    const profiles: any[] = await prisma.$queryRaw`SELECT * FROM companyprofile LIMIT 1`;
     if (profiles.length > 0) {
       res.json(profiles[0]);
     } else {
@@ -43,7 +43,7 @@ router.post("/", upload.single("logo"), async (req, res) => {
   const logoPath = req.file ? `/uploads/${req.file.filename}` : undefined;
 
   try {
-    const profiles: any[] = await prisma.$queryRaw`SELECT * FROM CompanyProfile LIMIT 1`;
+    const profiles: any[] = await prisma.$queryRaw`SELECT * FROM companyprofile LIMIT 1`;
 
     if (profiles.length > 0) {
       // Update existing
@@ -51,7 +51,7 @@ router.post("/", upload.single("logo"), async (req, res) => {
       const logoToSave = logoPath ? logoPath : profiles[0].logo;
 
       await prisma.$executeRaw`
-        UPDATE CompanyProfile SET 
+        UPDATE companyprofile SET 
           name = ${name || null},
           shortCode = ${shortCode || null},
           logo = ${logoToSave || null},
@@ -73,7 +73,7 @@ router.post("/", upload.single("logo"), async (req, res) => {
     } else {
       // Insert new
       await prisma.$executeRaw`
-        INSERT INTO CompanyProfile (
+        INSERT INTO companyprofile (
           id, name, shortCode, logo, establishedYear, registrationNo, tinNo,
           vatNo, tradeLicenseNo, hotline, website, socialMediaLinks,
           bankAccountNo, bankName, bankBranch, address, createdAt, updatedAt
@@ -85,7 +85,7 @@ router.post("/", upload.single("logo"), async (req, res) => {
       `;
     }
 
-    const updatedProfile: any[] = await prisma.$queryRaw`SELECT * FROM CompanyProfile LIMIT 1`;
+    const updatedProfile: any[] = await prisma.$queryRaw`SELECT * FROM companyprofile LIMIT 1`;
     res.json(updatedProfile[0]);
   } catch (error) {
     console.error("Error saving company profile:", error);

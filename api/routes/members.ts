@@ -38,7 +38,7 @@ router.post("/", upload.single("photo"), async (req, res) => {
   try {
     // Generate member ID dynamically from CompanyProfile shortCode
     const count = await prisma.member.count();
-    const profiles: any[] = await prisma.$queryRaw`SELECT shortCode FROM CompanyProfile LIMIT 1`;
+    const profiles: any[] = await prisma.$queryRaw`SELECT shortCode FROM companyprofile LIMIT 1`;
     const shortCode = profiles.length > 0 && profiles[0].shortCode ? profiles[0].shortCode : "SSM";
     const memberId = `${shortCode}${String(count + 1).padStart(3, '0')}`;
 
