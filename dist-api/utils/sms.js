@@ -38,3 +38,21 @@ export async function sendSms(phone, message, retryCount = 3) {
     console.log(`[SMS Utility] Failed to send SMS to ${cleanPhone} after ${retryCount} attempts.`);
     return false;
 }
+export async function checkSmsBalance() {
+    try {
+        const params = {
+            apiKey: process.env.MIM_SMS_API_KEY,
+            userName: process.env.MIM_SMS_USERNAME
+        };
+        const response = await axios.get("https://api.mimsms.com/api/V2/BalanceCheck", { params });
+        const data = response.data;
+        if (data && (data.statusCode === "200" || data.statusCode == 200)) {
+            return `${data.responseResult}`;
+        }
+        return "Error";
+    }
+    catch (error) {
+        console.error("[SMS Utility] Error checking balance:", error);
+        return "Error";
+    }
+}

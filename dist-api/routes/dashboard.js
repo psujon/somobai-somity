@@ -1,6 +1,7 @@
 import express from "express";
 import prisma from "../db.js";
 import { authenticateToken } from "../middleware/auth.js";
+import { checkSmsBalance } from "../utils/sms.js";
 const router = express.Router();
 router.use(authenticateToken);
 // GET /api/dashboard/summary
@@ -11,7 +12,7 @@ router.get("/summary", async (req, res) => {
         const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
         const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
         const endOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
-        const [totalMembers, activeMembers, totalSavings, totalLoanDisbursed, totalLoanPaid, activeLoanCount, todayDeposits, monthDeposits, recentIncome, recentExpense, monthlyIncome, monthlyExpense, totalIncomeVouchers, totalExpenseVouchers, memberDepositVouchers, monthExpenseVouchers,] = await Promise.all([
+        const [totalMembers, activeMembers, totalSavings, totalLoanDisbursed, totalLoanPaid, activeLoanCount, todayDeposits, monthDeposits, recentIncome, recentExpense, monthlyIncome, monthlyExpense, totalIncomeVouchers, totalExpenseVouchers, memberDepositVouchers, monthExpenseVouchers, totalInvestmentVouchers, smsBalanceStr,] = await Promise.all([
             // মোট সদস্য
             prisma.member.count(),
             // সক্রিয় সদস্য
@@ -107,7 +108,14 @@ router.get("/summary", async (req, res) => {
                     type: "EXPENSE",
                     date: { gte: startOfMonth, lte: endOfMonth }
                 }
-            })
+            }),
+            // মোট বিনিয়োগ
+            prisma.voucher.aggregate({
+                _sum: { amount: true },
+                where: { type: "INVESTMENT" }
+            }),
+            // SMS ব্যালেন্স চেক
+            checkSmsBalance()
         ]);
         // মাসিক চার্ট ডেটা merge করা
         const monthNames = {
@@ -128,6 +136,7 @@ router.get("/summary", async (req, res) => {
         const totalExpenseVal = totalExpenseVouchers._sum.amount || 0;
         const totalMemberDepositVal = memberDepositVouchers._sum.amount || 0;
         const runningMonthExpenseVal = monthExpenseVouchers._sum.amount || 0;
+        const totalInvestmentVal = totalInvestmentVouchers._sum.amount || 0;
         res.json({
             stats: {
                 totalMembers,
@@ -145,6 +154,8 @@ router.get("/summary", async (req, res) => {
                 othersIncome: totalIncomeVal - totalMemberDepositVal,
                 totalExpenseAmount: totalExpenseVal,
                 runningMonthExpense: runningMonthExpenseVal,
+                totalInvestment: totalInvestmentVal,
+                smsBalance: smsBalanceStr,
             },
             chartData,
             recentIncome,

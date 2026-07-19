@@ -3,7 +3,8 @@ import axios from "axios";
 import { useAuth } from "../context/AuthContext";
 import {
   Users, PiggyBank, CreditCard, TrendingUp,
-  CalendarCheck, Banknote, RefreshCw, Wallet, Coins, TrendingDown, Calendar
+  CalendarCheck, Banknote, RefreshCw, Wallet, Coins, TrendingDown, Calendar,
+  Building, MessageSquare
 } from "lucide-react";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
@@ -171,19 +172,19 @@ export default function Dashboard() {
             loading={loading}
           />
           <StatCard
-            title="বিতরণকৃত ঋণ"
-            value={stats ? fmt(stats.totalLoanDisbursed) : "—"}
-            sub={stats ? `বকেয়া: ${fmt(stats.outstandingLoan)}` : ""}
-            icon={CreditCard}
+            title="মোট বিনিয়োগ"
+            value={stats ? fmt(stats.totalInvestment || 0) : "—"}
+            sub="বিনিয়োগকৃত টাকার পরিমান"
+            icon={Building}
             colorClass="bg-purple-100 text-purple-600"
             loading={loading}
           />
           <StatCard
-            title="সক্রিয় ঋণ"
-            value={stats ? `${stats.activeLoanCount} টি` : "—"}
-            sub="চলমান ঋণ হিসাব"
-            icon={Banknote}
-            colorClass="bg-rose-100 text-rose-600"
+            title="এসএমএস ব্যালেন্স"
+            value={stats && stats.smsBalance ? (stats.smsBalance === 'Error' ? 'এরর' : `৳ ${stats.smsBalance}`) : "—"}
+            sub="বর্তমান এসএমএস ব্যালেন্স"
+            icon={MessageSquare}
+            colorClass="bg-indigo-100 text-indigo-600"
             loading={loading}
           />
         </div>

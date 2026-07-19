@@ -231,6 +231,7 @@ router.get("/reports/association-income-expense", async (req, res) => {
         });
         const incomeMap = {};
         const expenseMap = {};
+        const investmentMap = {};
         let totalIncome = 0;
         let totalExpense = 0;
         for (const v of vouchers) {
@@ -242,6 +243,10 @@ router.get("/reports/association-income-expense", async (req, res) => {
                 expenseMap[v.category] = (expenseMap[v.category] || 0) + v.amount;
                 totalExpense += v.amount;
             }
+            else if (v.type === "INVESTMENT") {
+                investmentMap[v.category] = (investmentMap[v.category] || 0) + v.amount;
+                totalExpense += v.amount;
+            }
         }
         const incomes = Object.entries(incomeMap).map(([category, amount]) => ({
             category,
@@ -251,9 +256,14 @@ router.get("/reports/association-income-expense", async (req, res) => {
             category,
             amount,
         }));
+        const investments = Object.entries(investmentMap).map(([category, amount]) => ({
+            category,
+            amount,
+        }));
         res.json({
             incomes,
             expenses,
+            investments,
             totalIncome,
             totalExpense,
             netBalance: totalIncome - totalExpense,

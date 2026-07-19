@@ -254,6 +254,7 @@ router.get("/reports/association-income-expense", async (req, res) => {
 
     const incomeMap: Record<string, number> = {};
     const expenseMap: Record<string, number> = {};
+    const investmentMap: Record<string, number> = {};
     let totalIncome = 0;
     let totalExpense = 0;
 
@@ -263,6 +264,9 @@ router.get("/reports/association-income-expense", async (req, res) => {
         totalIncome += v.amount;
       } else if (v.type === "EXPENSE") {
         expenseMap[v.category] = (expenseMap[v.category] || 0) + v.amount;
+        totalExpense += v.amount;
+      } else if (v.type === "INVESTMENT") {
+        investmentMap[v.category] = (investmentMap[v.category] || 0) + v.amount;
         totalExpense += v.amount;
       }
     }
@@ -277,9 +281,15 @@ router.get("/reports/association-income-expense", async (req, res) => {
       amount,
     }));
 
+    const investments = Object.entries(investmentMap).map(([category, amount]) => ({
+      category,
+      amount,
+    }));
+
     res.json({
       incomes,
       expenses,
+      investments,
       totalIncome,
       totalExpense,
       netBalance: totalIncome - totalExpense,

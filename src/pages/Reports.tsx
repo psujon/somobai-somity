@@ -222,14 +222,23 @@ export default function Reports() {
           </tr>
         `).join('');
 
-    const expensesHtml = associationData.expenses.length === 0
+    const expensesHtml = associationData.expenses.length === 0 && (!associationData.investments || associationData.investments.length === 0)
       ? `<tr><td colspan="2" style="text-align:center;padding:12px;color:#94a3b8;">কোনো ব্যয়ের বিবরণ পাওয়া যায়নি</td></tr>`
       : associationData.expenses.map((exp: any) => `
           <tr>
             <td style="padding:8px 12px;border:1px solid #cbd5e1;">${exp.category}</td>
             <td style="padding:8px 12px;border:1px solid #cbd5e1;text-align:right;font-weight:600;color:#dc2626;">৳ ${fmt(exp.amount)}</td>
           </tr>
-        `).join('');
+        `).join('') +
+        (associationData.investments && associationData.investments.length > 0 
+          ? `<tr><td colspan="2" style="background:#f1f5f9;font-weight:bold;padding:8px 12px;border:1px solid #cbd5e1;text-align:center;color:#334155;">বিনিয়োগ বাবদ খরচ (Investments)</td></tr>` +
+            associationData.investments.map((inv: any) => `
+            <tr>
+              <td style="padding:8px 12px;border:1px solid #cbd5e1;">${inv.category}</td>
+              <td style="padding:8px 12px;border:1px solid #cbd5e1;text-align:right;font-weight:600;color:#dc2626;">৳ ${fmt(inv.amount)}</td>
+            </tr>
+          `).join('')
+          : '');
 
     const netLabel = associationData.netBalance >= 0 ? "নীট উদ্বৃত্ত (Surplus)" : "নীট ঘাটতি (Deficit)";
     const netColor = associationData.netBalance >= 0 ? "#16a34a" : "#dc2626";
@@ -295,20 +304,19 @@ export default function Reports() {
               </tfoot>
             </table>
           </td>
-          <!-- Expense Column -->
           <td style="width:50%; vertical-align:top; border:none; padding:0 0 0 10px;">
-            <div class="table-title">ব্যয় সমূহ (Expenses)</div>
+            <div class="table-title">ব্যয় ও বিনিয়োগ সমূহ (Expenses & Investments)</div>
             <table style="width:100%; border-collapse:collapse;">
               <thead>
                 <tr>
-                  <th style="padding:8px 12px;border:1px solid #cbd5e1;background:#f8fafc;font-weight:600;text-align:left;">ব্যয়ের খাত (Category)</th>
+                  <th style="padding:8px 12px;border:1px solid #cbd5e1;background:#f8fafc;font-weight:600;text-align:left;">খাত (Category)</th>
                   <th style="padding:8px 12px;border:1px solid #cbd5e1;background:#f8fafc;font-weight:600;text-align:right;">টাকার পরিমাণ (Amount)</th>
                 </tr>
               </thead>
               <tbody>${expensesHtml}</tbody>
               <tfoot>
                 <tr style="background:#f8fafc;font-weight:bold;">
-                  <td style="padding:8px 12px;border:1px solid #cbd5e1;">মোট ব্যয় (Total Expense)</td>
+                  <td style="padding:8px 12px;border:1px solid #cbd5e1;">মোট ব্যয় ও বিনিয়োগ</td>
                   <td style="padding:8px 12px;border:1px solid #cbd5e1;text-align:right;color:#dc2626;">৳ ${fmt(associationData.totalExpense)}</td>
                 </tr>
               </tfoot>
@@ -326,7 +334,7 @@ export default function Reports() {
             <td style="padding:6px 0; border:none; text-align:right; color:#16a34a; font-weight:bold;">৳ ${fmt(associationData.totalIncome)}</td>
           </tr>
           <tr style="border-bottom:1px dashed #cbd5e1;">
-            <td style="padding:6px 0; border:none; text-align:left;">সর্বমোট ব্যয় (Total Expense):</td>
+            <td style="padding:6px 0; border:none; text-align:left;">সর্বমোট ব্যয় ও বিনিয়োগ:</td>
             <td style="padding:6px 0; border:none; text-align:right; color:#dc2626; font-weight:bold;">৳ ${fmt(associationData.totalExpense)}</td>
           </tr>
           <tr>
@@ -825,38 +833,57 @@ export default function Reports() {
             {/* Expense Card */}
             <div className="bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden">
               <div className="bg-red-500 text-white px-6 py-4">
-                <h3 className="font-bold text-lg">ব্যয় সমূহ (Expenses)</h3>
+                <h3 className="font-bold text-lg">ব্যয় ও বিনিয়োগ সমূহ (Expenses & Investments)</h3>
               </div>
               <div className="overflow-x-auto">
                 <table className="w-full text-sm text-left">
                   <thead className="bg-slate-50 text-slate-600 border-b border-slate-200">
                     <tr>
-                      <th className="px-6 py-3 font-semibold">ব্যয়ের খাত (Category)</th>
+                      <th className="px-6 py-3 font-semibold">খাত (Category)</th>
                       <th className="px-6 py-3 font-semibold text-right text-red-600">পরিমাণ (Amount)</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
-                    {associationData.expenses.length === 0 ? (
+                    {associationData.expenses.length === 0 && (!associationData.investments || associationData.investments.length === 0) ? (
                       <tr>
                         <td colSpan={2} className="text-center py-8 text-slate-400">
                           কোনো ব্যয়ের বিবরণ পাওয়া যায়নি
                         </td>
                       </tr>
                     ) : (
-                      associationData.expenses.map((exp: any, idx: number) => (
-                        <tr key={idx} className={idx % 2 === 0 ? "" : "bg-slate-50/40"}>
-                          <td className="px-6 py-4 text-slate-700 font-medium">{exp.category}</td>
-                          <td className="px-6 py-4 text-right font-bold text-red-500">
-                            ৳ {fmt(exp.amount)}
-                          </td>
-                        </tr>
-                      ))
+                      <>
+                        {associationData.expenses.map((exp: any, idx: number) => (
+                          <tr key={`exp-${idx}`} className={idx % 2 === 0 ? "" : "bg-slate-50/40"}>
+                            <td className="px-6 py-4 text-slate-700 font-medium">{exp.category}</td>
+                            <td className="px-6 py-4 text-right font-bold text-red-500">
+                              ৳ {fmt(exp.amount)}
+                            </td>
+                          </tr>
+                        ))}
+                        {associationData.investments && associationData.investments.length > 0 && (
+                          <>
+                            <tr className="bg-slate-100/70 border-y border-slate-200">
+                              <td colSpan={2} className="px-6 py-3 text-center font-bold text-slate-600">
+                                বিনিয়োগ বাবদ খরচ (Investments)
+                              </td>
+                            </tr>
+                            {associationData.investments.map((inv: any, idx: number) => (
+                              <tr key={`inv-${idx}`} className={idx % 2 === 0 ? "bg-white" : "bg-slate-50/40"}>
+                                <td className="px-6 py-4 text-slate-700 font-medium">{inv.category}</td>
+                                <td className="px-6 py-4 text-right font-bold text-red-500">
+                                  ৳ {fmt(inv.amount)}
+                                </td>
+                              </tr>
+                            ))}
+                          </>
+                        )}
+                      </>
                     )}
                   </tbody>
-                  {associationData.expenses.length > 0 && (
+                  {(associationData.expenses.length > 0 || (associationData.investments && associationData.investments.length > 0)) && (
                     <tfoot className="border-t-2 border-slate-300 bg-slate-100">
                       <tr>
-                        <td className="px-6 py-3 font-bold text-slate-700">মোট ব্যয় (Total Expense):</td>
+                        <td className="px-6 py-3 font-bold text-slate-700">মোট ব্যয় ও বিনিয়োগ:</td>
                         <td className="px-6 py-3 text-right font-bold text-red-700">
                           ৳ {fmt(associationData.totalExpense)}
                         </td>
@@ -877,7 +904,7 @@ export default function Reports() {
                 <span className="text-lg font-bold text-green-600">৳ {fmt(associationData.totalIncome)}</span>
               </div>
               <div className="flex justify-between items-center py-2 border-b border-slate-200/60">
-                <span className="text-slate-600 font-medium">সর্বমোট ব্যয় (Total Expense)</span>
+                <span className="text-slate-600 font-medium">সর্বমোট ব্যয় ও বিনিয়োগ (Total Expense & Investment)</span>
                 <span className="text-lg font-bold text-red-500">৳ {fmt(associationData.totalExpense)}</span>
               </div>
               <div className="flex justify-between items-center pt-2">

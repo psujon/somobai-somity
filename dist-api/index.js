@@ -15,6 +15,7 @@ import companyProfileRoutes from "./routes/companyProfile.js";
 import dashboardRoutes from "./routes/dashboard.js";
 import accountCategoryRoutes from "./routes/accountCategories.js";
 import memberPortalRoutes from "./routes/memberPortal.js";
+import feedbackRoutes from "./routes/feedback.js";
 import { startBackupScheduler } from "./utils/backupScheduler.js";
 dotenv.config();
 startBackupScheduler();
@@ -44,6 +45,7 @@ app.use("/api/company-profile", companyProfileRoutes);
 app.use("/api/dashboard", dashboardRoutes);
 app.use("/api/account-categories", accountCategoryRoutes);
 app.use("/api/member-portal", memberPortalRoutes);
+app.use("/api/feedback", feedbackRoutes);
 app.get("/api/health", (req, res) => {
     res.json({ status: "ok", message: "Cooperative API is running" });
 });

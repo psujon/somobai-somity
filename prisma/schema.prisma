@@ -99,6 +99,7 @@ model Member {
   monthlySavingsSummary MonthlySavingsSummary[]
   savingsAccount       SavingsAccount[]
   voucher               Voucher[]
+  feedbacks             Feedback[]
 
   @@map("member")
 }
@@ -230,4 +231,19 @@ model AccountCategory {
   updatedAt DateTime @updatedAt
 
   @@map("accountcategory")
+}
+
+model Feedback {
+  id        String   @id @default(cuid())
+  memberId  String
+  type      String   @default("COMPLAINT") // COMPLAINT or SUGGESTION
+  subject   String
+  message   String   @db.Text
+  status    String   @default("PENDING") // PENDING, REVIEWED, RESOLVED
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  member    Member   @relation(fields: [memberId], references: [id])
+
+  @@index([memberId])
+  @@map("feedback")
 }

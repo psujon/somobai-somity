@@ -1,6 +1,7 @@
 import express from "express";
 import prisma from "../db.js";
 import { authenticateToken } from "../middleware/auth.js";
+import { checkSmsBalance } from "../utils/sms.js";
 
 const router = express.Router();
 router.use(authenticateToken);
@@ -31,6 +32,8 @@ router.get("/summary", async (req, res) => {
       totalExpenseVouchers,
       memberDepositVouchers,
       monthExpenseVouchers,
+      totalInvestmentVouchers,
+      smsBalanceStr,
     ] = await Promise.all([
       // মোট সদস্য
       prisma.member.count(),
@@ -142,7 +145,16 @@ router.get("/summary", async (req, res) => {
           type: "EXPENSE",
           date: { gte: startOfMonth, lte: endOfMonth }
         }
-      })
+      }),
+
+      // মোট বিনিয়োগ
+      prisma.voucher.aggregate({
+        _sum: { amount: true },
+        where: { type: "INVESTMENT" }
+      }),
+
+      // SMS ব্যালেন্স চেক
+      checkSmsBalance()
     ]);
 
     // মাসিক চার্ট ডেটা merge করা
@@ -174,6 +186,7 @@ router.get("/summary", async (req, res) => {
     const totalExpenseVal = totalExpenseVouchers._sum.amount || 0;
     const totalMemberDepositVal = memberDepositVouchers._sum.amount || 0;
     const runningMonthExpenseVal = monthExpenseVouchers._sum.amount || 0;
+    const totalInvestmentVal = totalInvestmentVouchers._sum.amount || 0;
 
     res.json({
       stats: {
@@ -193,6 +206,8 @@ router.get("/summary", async (req, res) => {
         othersIncome: totalIncomeVal - totalMemberDepositVal,
         totalExpenseAmount: totalExpenseVal,
         runningMonthExpense: runningMonthExpenseVal,
+        totalInvestment: totalInvestmentVal,
+        smsBalance: smsBalanceStr,
       },
       chartData,
       recentIncome,

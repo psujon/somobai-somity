@@ -3,7 +3,7 @@ import { useAuth } from "../context/AuthContext";
 import {
   LayoutDashboard, Users, PiggyBank, CreditCard,
   FileText, Briefcase, Settings, LogOut, Menu, X, ChevronDown, ChevronRight,
-  Database
+  Database, MessageSquareWarning
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import axios from "axios";
@@ -103,7 +103,6 @@ export default function DashboardLayout() {
     { name: "ঋণ ব্যবস্থাপনা", path: "/loans", icon: CreditCard },
     { name: "হিসাবরক্ষণ ও ভাউচার", path: "/accounts", icon: Briefcase },
     { name: "রিপোর্টস", path: "/reports", icon: FileText },
-    { name: "ডাটাবেজ ব্যাকআপ", path: "/backup", icon: Database },
     {
       name: "সেটিংস",
       path: "/settings",
@@ -115,7 +114,9 @@ export default function DashboardLayout() {
         { name: "ইউজার", path: "/settings/users" },
         { name: "হিসাবের ক্যাটাগরী", path: "/settings/account-categories" },
       ]
-    }
+    },
+    { name: "ডাটাবেজ ব্যাকআপ", path: "/backup", icon: Database },
+    { name: "অভিযোগ ও পরামর্শ", path: "/complaints", icon: MessageSquareWarning }
   ];
 
   return (

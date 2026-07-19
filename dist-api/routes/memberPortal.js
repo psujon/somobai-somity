@@ -92,4 +92,57 @@ router.get("/profile", async (req, res) => {
         res.status(500).json({ message: "Server error" });
     }
 });
+// GET /api/member-portal/feedback
+router.get("/feedback", async (req, res) => {
+    if (req.user.role !== "MEMBER") {
+        return res.status(403).json({ message: "Forbidden" });
+    }
+    const phone = req.user.id;
+    try {
+        const members = await prisma.member.findMany({
+            where: { phone },
+            select: { id: true }
+        });
+        const memberIds = members.map(m => m.id);
+        const feedbacks = await prisma.feedback.findMany({
+            where: { memberId: { in: memberIds } },
+            orderBy: { createdAt: "desc" }
+        });
+        res.json(feedbacks);
+    }
+    catch (error) {
+        console.error("Member feedback error:", error);
+        res.status(500).json({ message: "Server error" });
+    }
+});
+// POST /api/member-portal/feedback
+router.post("/feedback", async (req, res) => {
+    if (req.user.role !== "MEMBER") {
+        return res.status(403).json({ message: "Forbidden" });
+    }
+    const phone = req.user.id;
+    const { type, subject, message } = req.body;
+    try {
+        // Find the first member associated with this phone
+        const member = await prisma.member.findFirst({
+            where: { phone },
+        });
+        if (!member) {
+            return res.status(404).json({ message: "Member not found" });
+        }
+        const feedback = await prisma.feedback.create({
+            data: {
+                memberId: member.id,
+                type: type || "COMPLAINT",
+                subject,
+                message
+            }
+        });
+        res.json(feedback);
+    }
+    catch (error) {
+        console.error("Member create feedback error:", error);
+        res.status(500).json({ message: "Server error" });
+    }
+});
 export default router;

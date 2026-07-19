@@ -4,8 +4,10 @@ import { useAuth } from "../context/AuthContext";
 import { useNavigate } from "react-router-dom";
 import {
   LayoutDashboard, FileText, User, LogOut,
-  PiggyBank, CreditCard, Printer, RefreshCw, Download
+  PiggyBank, CreditCard, Printer, RefreshCw, Download,
+  MessageCircle
 } from "lucide-react";
+import { toast } from "react-toastify";
 
 export default function MemberDashboard() {
   const { token, logout } = useAuth();
@@ -21,6 +23,11 @@ export default function MemberDashboard() {
   const [selectedAccountId, setSelectedAccountId] = useState("");
   const [statementData, setStatementData] = useState<any>(null);
   const [statementLoading, setStatementLoading] = useState(false);
+
+  // Feedback States
+  const [feedbacks, setFeedbacks] = useState<any[]>([]);
+  const [feedbackForm, setFeedbackForm] = useState({ type: "COMPLAINT", subject: "", message: "" });
+  const [feedbackSubmitting, setFeedbackSubmitting] = useState(false);
 
   const fetchCompanyProfile = async () => {
     try {
@@ -60,8 +67,40 @@ export default function MemberDashboard() {
 
   const loadData = async () => {
     setLoading(true);
-    await Promise.all([fetchSummary(), fetchProfiles(), fetchCompanyProfile()]);
+    await Promise.all([fetchSummary(), fetchProfiles(), fetchCompanyProfile(), fetchFeedbacks()]);
     setLoading(false);
+  };
+
+  const fetchFeedbacks = async () => {
+    try {
+      const res = await axios.get(`${process.env.API_HOST}/api/member-portal/feedback`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setFeedbacks(res.data);
+    } catch (err) {
+      console.error("Error fetching feedbacks", err);
+    }
+  };
+
+  const submitFeedback = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!feedbackForm.subject || !feedbackForm.message) {
+      toast.error("বিষয় এবং বিস্তারিত তথ্য দিন।");
+      return;
+    }
+    setFeedbackSubmitting(true);
+    try {
+      await axios.post(`${process.env.API_HOST}/api/member-portal/feedback`, feedbackForm, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      toast.success("আপনার মতামতের জন্য ধন্যবাদ!");
+      setFeedbackForm({ type: "COMPLAINT", subject: "", message: "" });
+      fetchFeedbacks();
+    } catch (err) {
+      toast.error("দুঃখিত, কোনো সমস্যা হয়েছে।");
+    } finally {
+      setFeedbackSubmitting(false);
+    }
   };
 
   useEffect(() => {
@@ -185,6 +224,15 @@ export default function MemberDashboard() {
           >
             <User size={18} />
             প্রোফাইল
+          </button>
+
+          <button
+            onClick={() => setActiveTab("feedback")}
+            className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium transition-colors ${activeTab === "feedback" ? "bg-blue-600 text-white" : "text-slate-300 hover:bg-slate-800 hover:text-white"
+              }`}
+          >
+            <MessageCircle size={18} />
+            অভিযোগ ও পরামর্শ
           </button>
         </div>
 
@@ -361,7 +409,7 @@ export default function MemberDashboard() {
                         <p className="text-xs text-slate-500 font-medium mt-0.5">{companyProfile.address}</p>
                       )}
                       {companyProfile?.hotline && (
-                        <p className="text-[11px] text-slate-400 mt-0.5">হটলাইন: {companyProfile.hotline}</p>
+                        <p className="text-[11px] text-slate-400 mt-0.5">হটলাইন: {companyProfile.hotline}, ওয়েবসাইট: https://fvpbd.com</p>
                       )}
                     </div>
                   </div>
@@ -464,11 +512,11 @@ export default function MemberDashboard() {
                   <table className="w-full text-left text-xs border-collapse">
                     <thead className="bg-slate-900 text-white print:bg-slate-100 print:text-slate-800 border-b border-slate-300">
                       <tr>
-                        <th className="border border-slate-300 px-4 py-2 font-bold">তারিখ</th>
-                        <th className="border border-slate-300 px-4 py-2 font-bold">ভাউচার কোড</th>
-                        <th className="border border-slate-300 px-4 py-2 font-bold">বিবরণ / মন্তব্য</th>
-                        <th className="border border-slate-300 px-4 py-2 font-bold text-center">লেনদেন ধরন</th>
-                        <th className="border border-slate-300 px-4 py-2 font-bold text-right">পরিমাণ</th>
+                        <th className="border border-slate-300 px-2 py-2 font-bold">তারিখ</th>
+                        <th className="border border-slate-300 px-2 py-2 font-bold">ভাউচার কোড</th>
+                        <th className="border border-slate-300 px-2 py-2 font-bold">বিবরণ / মন্তব্য</th>
+                        <th className="border border-slate-300 px-2 py-2 font-bold text-center">লেনদেন ধরন</th>
+                        <th className="border border-slate-300 px-2 py-2 font-bold text-right">পরিমাণ</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-200">
@@ -484,7 +532,7 @@ export default function MemberDashboard() {
                             <td className="border border-slate-200 px-4 py-1.5 text-slate-600 font-semibold whitespace-nowrap">
                               {new Date(tx.transactionDate || tx.date).toLocaleDateString("bn-BD")}
                             </td>
-                            <td className="border border-slate-200 px-4 py-1.5 font-bold text-slate-800">{tx.voucherRef || "-"}</td>
+                            <td className="border border-slate-200 px-4 py-1.5 font-bold text-slate-800">{tx.voucherNo || "-"}</td>
                             <td className="border border-slate-200 px-4 py-1.5 text-slate-500 truncate max-w-[200px]" title={tx.remarks || ""}>
                               {tx.remarks || tx.depositMonth || "-"}
                             </td>
@@ -640,6 +688,96 @@ export default function MemberDashboard() {
                 </div>
               </div>
             )}
+          </div>
+        )}
+
+        {activeTab === "feedback" && (
+          <div className="space-y-6 print:hidden">
+            <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-100">
+              <h3 className="font-bold text-slate-800 border-b pb-4 mb-4">নতুন অভিযোগ বা পরামর্শ দিন</h3>
+              <form onSubmit={submitFeedback} className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">ধরন</label>
+                    <select
+                      value={feedbackForm.type}
+                      onChange={e => setFeedbackForm({ ...feedbackForm, type: e.target.value })}
+                      className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-slate-50"
+                    >
+                      <option value="COMPLAINT">অভিযোগ</option>
+                      <option value="SUGGESTION">পরামর্শ</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">বিষয়</label>
+                    <input
+                      type="text"
+                      value={feedbackForm.subject}
+                      onChange={e => setFeedbackForm({ ...feedbackForm, subject: e.target.value })}
+                      className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="সংক্ষিপ্ত বিষয় লিখুন"
+                      required
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">বিস্তারিত</label>
+                  <textarea
+                    value={feedbackForm.message}
+                    onChange={e => setFeedbackForm({ ...feedbackForm, message: e.target.value })}
+                    className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 h-32 resize-none"
+                    placeholder="আপনার অভিযোগ বা পরামর্শ বিস্তারিত লিখুন"
+                    required
+                  ></textarea>
+                </div>
+                <div className="flex justify-end">
+                  <button
+                    type="submit"
+                    disabled={feedbackSubmitting}
+                    className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg font-bold transition disabled:opacity-50"
+                  >
+                    {feedbackSubmitting ? "সাবমিট হচ্ছে..." : "সাবমিট করুন"}
+                  </button>
+                </div>
+              </form>
+            </div>
+
+            <div className="bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden">
+              <div className="px-6 py-4 border-b border-slate-100">
+                <h3 className="font-bold text-slate-800">আপনার পূর্বের অভিযোগ ও পরামর্শ</h3>
+              </div>
+              <div className="p-4 space-y-4">
+                {feedbacks.length === 0 ? (
+                  <p className="text-center text-slate-500 py-4">কোনো তথ্য পাওয়া যায়নি।</p>
+                ) : (
+                  feedbacks.map((item) => (
+                    <div key={item.id} className="p-4 rounded-lg border border-slate-100 bg-slate-50">
+                      <div className="flex justify-between items-start mb-2">
+                        <div>
+                          <span className={`px-2 py-0.5 rounded text-xs font-bold uppercase tracking-wide mr-2 ${item.type === 'COMPLAINT' ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'}`}>
+                            {item.type === 'COMPLAINT' ? 'অভিযোগ' : 'পরামর্শ'}
+                          </span>
+                          <span className="font-bold text-slate-800">{item.subject}</span>
+                        </div>
+                        <span className="text-xs text-slate-400">
+                          {new Date(item.createdAt).toLocaleDateString("bn-BD")}
+                        </span>
+                      </div>
+                      <p className="text-sm text-slate-600 mt-2 whitespace-pre-wrap">{item.message}</p>
+                      <div className="mt-3 text-right">
+                        <span className={`text-xs font-bold px-2 py-1 rounded-full ${
+                          item.status === 'PENDING' ? 'bg-yellow-100 text-yellow-700' :
+                          item.status === 'REVIEWED' ? 'bg-blue-100 text-blue-700' :
+                          'bg-green-100 text-green-700'
+                        }`}>
+                          {item.status === 'PENDING' ? 'পেন্ডিং' : item.status === 'REVIEWED' ? 'রিভিউ করা হয়েছে' : 'সমাধান হয়েছে'}
+                        </span>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
           </div>
         )}
       </main>

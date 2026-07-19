@@ -17,6 +17,7 @@ import Users from "./pages/Settings/Users";
 import DatabaseBackup from "./pages/Settings/DatabaseBackup";
 import AccountCategories from "./pages/Settings/AccountCategories";
 import MemberDashboard from "./pages/MemberDashboard";
+import Complaints from "./pages/Complaints";
 import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 
@@ -100,6 +101,7 @@ function App() {
           <Route path="loans" element={<Loans />} />
           <Route path="accounts" element={<Accounts />} />
           <Route path="reports" element={<Reports />} />
+          <Route path="complaints" element={<Complaints />} />
           <Route path="backup" element={<DatabaseBackup />} />
           <Route path="settings">
             <Route path="profile" element={<CompanyProfile />} />
