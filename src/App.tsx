@@ -16,6 +16,7 @@ import MemberPositions from "./pages/Settings/MemberPositions";
 import Users from "./pages/Settings/Users";
 import DatabaseBackup from "./pages/Settings/DatabaseBackup";
 import AccountCategories from "./pages/Settings/AccountCategories";
+import ChangePassword from "./pages/Settings/ChangePassword";
 import MemberDashboard from "./pages/MemberDashboard";
 import Complaints from "./pages/Complaints";
 import { ToastContainer } from 'react-toastify';
@@ -109,6 +110,7 @@ function App() {
             <Route path="member-positions" element={<MemberPositions />} />
             <Route path="users" element={<Users />} />
             <Route path="account-categories" element={<AccountCategories />} />
+            <Route path="change-password" element={<ChangePassword />} />
             <Route index element={<Navigate to="profile" replace />} />
           </Route>
         </Route>

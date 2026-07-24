@@ -113,6 +113,7 @@ export default function DashboardLayout() {
         { name: "মেম্বার পদবী", path: "/settings/member-positions" },
         { name: "ইউজার", path: "/settings/users" },
         { name: "হিসাবের ক্যাটাগরী", path: "/settings/account-categories" },
+        { name: "পাসওয়ার্ড পরিবর্তন", path: "/settings/change-password" },
       ]
     },
     { name: "ডাটাবেজ ব্যাকআপ", path: "/backup", icon: Database },

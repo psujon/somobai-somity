@@ -22,6 +22,7 @@ export default function Accounts() {
   const [formMemberSearchQuery, setFormMemberSearchQuery] = useState("");
   const [showFormMemberSuggestions, setShowFormMemberSuggestions] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [afterlastTransaction, setAfterLastTransaction] = useState<any>(null);
   const { token } = useAuth();
 
   const [formData, setFormData] = useState({
@@ -34,6 +35,22 @@ export default function Accounts() {
     date: new Date().toISOString().split("T")[0],
     voucherNo: ""
   });
+
+  const handleLastTransaction = () => {
+    if (afterlastTransaction) {
+      setFormData(afterlastTransaction);
+      if (afterlastTransaction.memberId) {
+        const member = members.find((m: any) => m.id === afterlastTransaction.memberId);
+        if (member) {
+          setFormMemberSearchQuery(`${member.name} (${member.memberId})`);
+        }
+      } else {
+        setFormMemberSearchQuery("");
+      }
+    } else {
+      toast.info("কোনো পূর্ববর্তী লেনদেন পাওয়া যায়নি");
+    }
+  };
 
   const fetchTransactions = async (filters = searchFilters) => {
     setLoading(true);
@@ -162,6 +179,7 @@ export default function Accounts() {
         });
         toast.success("ভাউচার সফলভাবে তৈরি হয়েছে");
       }
+      setAfterLastTransaction(formData);
       setShowModal(false);
       setEditingId(null);
       setFormMemberSearchQuery("");
@@ -212,7 +230,7 @@ export default function Accounts() {
   const filteredMembers = useMemo(() => {
     const q = memberSearchQuery.toLowerCase().trim();
     if (!q) return [];
-    return members.filter((m: any) => 
+    return members.filter((m: any) =>
       m.name.toLowerCase().includes(q) || m.memberId.toLowerCase().includes(q)
     ).slice(0, 10);
   }, [memberSearchQuery, members]);
@@ -235,7 +253,7 @@ export default function Accounts() {
   const filteredFormMembers = useMemo(() => {
     const q = formMemberSearchQuery.toLowerCase().trim();
     if (!q) return [];
-    return members.filter((m: any) => 
+    return members.filter((m: any) =>
       m.name.toLowerCase().includes(q) || m.memberId.toLowerCase().includes(q)
     ).slice(0, 10);
   }, [formMemberSearchQuery, members]);
@@ -539,7 +557,7 @@ export default function Accounts() {
                 </div>
               </div>
 
-              {formData.category.toLowerCase().includes("deposit") && (
+              {formData.category?.toLowerCase().includes("deposit") && (
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-1">ডিপোজিট মাস</label>
                   <input type="month" value={formData.depositMonth} onChange={e => setFormData({ ...formData, depositMonth: e.target.value })} className="w-full px-3 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-blue-500" />
@@ -554,9 +572,13 @@ export default function Accounts() {
                 <label className="block text-sm font-medium text-slate-700 mb-1">বিবরণ</label>
                 <textarea required value={formData.description} onChange={e => setFormData({ ...formData, description: e.target.value })} className="w-full px-3 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-blue-500" placeholder="ভাউচারের বিস্তারিত বিবরণ" rows={2}></textarea>
               </div>
-              <div className="pt-4 flex justify-end gap-3">
-                <button type="button" onClick={() => setShowModal(false)} className="px-4 py-2 text-slate-600 hover:bg-slate-100 rounded-lg">বাতিল</button>
-                <button type="submit" className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">সেভ করুন</button>
+              <div className="pt-4 flex items-center justify-between gap-3">
+                <button type="button" onClick={() => handleLastTransaction()} className="px-4 py-2 text-slate-600 hover:bg-slate-100 rounded-lg">সর্বশেষ জমা</button>
+
+                <div className="pt-4 flex justify-end gap-3">
+                  <button type="button" onClick={() => setShowModal(false)} className="px-4 py-2 text-slate-600 hover:bg-slate-100 rounded-lg">বাতিল</button>
+                  <button type="submit" className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">সেভ করুন</button>
+                </div>
               </div>
             </form>
           </div>

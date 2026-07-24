@@ -3,6 +3,7 @@ import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import prisma from "../db.js";
 import { sendSms } from "../utils/sms.js";
+import { authenticateToken } from "../middleware/auth.js";
 
 const router = express.Router();
 
@@ -231,6 +232,44 @@ router.post("/verify-otp", async (req, res) => {
     });
   } catch (error) {
     console.error("OTP verification error:", error);
+    res.status(500).json({ message: "সার্ভার এরর" });
+  }
+});
+
+// POST /api/auth/change-password - Change admin password
+router.put("/change-password", authenticateToken, async (req: any, res) => {
+  const { oldPassword, newPassword } = req.body;
+  const userId = req.user?.id;
+
+  if (!oldPassword || !newPassword) {
+    return res.status(400).json({ message: "বর্তমান এবং নতুন পাসওয়ার্ড উভয়ই প্রয়োজন।" });
+  }
+
+  try {
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+    });
+
+    if (!user) {
+      return res.status(404).json({ message: "ইউজার পাওয়া যায়নি।" });
+    }
+
+    const validPassword = await bcrypt.compare(oldPassword, user.password);
+    if (!validPassword) {
+      return res.status(400).json({ message: "বর্তমান পাসওয়ার্ড ভুল।" });
+    }
+
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(newPassword, salt);
+
+    await prisma.user.update({
+      where: { id: userId },
+      data: { password: hashedPassword },
+    });
+
+    res.json({ message: "পাসওয়ার্ড সফলভাবে পরিবর্তন করা হয়েছে।" });
+  } catch (error) {
+    console.error("Change password error:", error);
     res.status(500).json({ message: "সার্ভার এরর" });
   }
 });
