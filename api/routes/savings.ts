@@ -109,6 +109,26 @@ router.post("/:id/deposit", async (req, res) => {
     return res.status(400).json({ message: "Invalid amount" });
   }
 
+  // Check if deposit already exists for the given month
+  if (depositMonth) {
+    try {
+      const existingDeposit = await prisma.savingsTransaction.findFirst({
+        where: {
+          savingsAccountId: id,
+          type: "DEPOSIT",
+          depositMonth: depositMonth,
+        },
+      });
+
+      if (existingDeposit) {
+        return res.status(400).json({ message: "ঐ মাসে ইতিমধ্যে সঞ্চয় জমা হয়েছে।" });
+      }
+    } catch (err) {
+      console.error("Error checking existing deposit:", err);
+      return res.status(500).json({ message: "সার্ভার এরর" });
+    }
+  }
+
   // মাসের নাম → DB কলাম ম্যাপিং
   const monthColumns: Record<number, string> = {
     1: "jan", 2: "feb", 3: "mar", 4: "apr",
@@ -394,14 +414,26 @@ router.put("/transactions/:id", async (req, res) => {
   const { amount, transactionDate, depositMonth, voucherNo, remarks } = req.body;
   const newAmount = parseFloat(amount);
 
+  let memberInfo: any = null;
+  let txType: string = "DEPOSIT";
+
   try {
     const result = await prisma.$transaction(async (tx) => {
       // ১. পুরাতন ট্রানজেকশন ডাটা খুঁজে নাও
       const oldTx = await tx.savingsTransaction.findUnique({
         where: { id },
-        include: { savingsAccount: true }
+        include: {
+          savingsAccount: {
+            include: {
+              member: true
+            }
+          }
+        }
       });
       if (!oldTx) throw new Error("Transaction not found");
+
+      memberInfo = oldTx.savingsAccount.member;
+      txType = oldTx.type;
 
       const diff = newAmount - oldTx.amount;
 
@@ -478,6 +510,19 @@ router.put("/transactions/:id", async (req, res) => {
     });
 
     res.json(result);
+
+    // Send SMS notification if transaction type is DEPOSIT and phone is available
+    if (memberInfo && memberInfo.phone && txType === "DEPOSIT") {
+      sendUpdateDepositSms(
+        memberInfo.phone,
+        memberInfo.name,
+        newAmount,
+        memberInfo.memberId,
+        depositMonth,
+        transactionDate,
+        voucherNo
+      ).catch((err) => console.error("SMS update notification send failed:", err));
+    }
   } catch (error: any) {
     console.error("Update error:", error);
     res.status(500).json({ message: error?.message || "Error updating transaction" });
@@ -564,6 +609,38 @@ async function sendDepositSms(phone: string, memberName: string, amount: number,
 
   // Bengali/English SMS text
   const message = `Dear Shareholders (${accountNo}), your ${prefixText} monthly installment of BDT ${amount}.00 has been received successfully on ${formattedDate}. Receipt No: ${depositVoucherNo}. Thank you for being with Future Value Properties.`;
+
+  return sendSms(phone, message, retryCount);
+}
+
+async function sendUpdateDepositSms(phone: string, memberName: string, amount: number, accountNo: string, depositMonth: string | null | undefined, transactionDate: Date | string | null | undefined, depositVoucherNo: string | null | undefined, retryCount = 3) {
+  // Format depositMonth to ShortMonth-Year if present
+  let prefixText = "";
+  if (depositMonth) {
+    const [year, month] = depositMonth.split("-");
+    const monthNamesEn = [
+      "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+      "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"
+    ];
+    const monthIndex = parseInt(month) - 1;
+    if (monthIndex >= 0 && monthIndex < 12) {
+      prefixText = `${monthNamesEn[monthIndex]}-${year} `;
+    }
+  }
+
+  let formattedDate = "";
+  if (transactionDate) {
+    const d = new Date(transactionDate);
+    if (!isNaN(d.getTime())) {
+      formattedDate = d.toISOString().split("T")[0];
+    }
+  }
+  if (!formattedDate) {
+    formattedDate = new Date().toISOString().split("T")[0];
+  }
+
+  // Bengali/English SMS text
+  const message = `Dear Shareholders (${accountNo}), your ${prefixText} monthly installment of BDT ${amount}.00 has been updated successfully on ${formattedDate}. Receipt No: ${depositVoucherNo}. Thank you for being with Future Value Properties.`;
 
   return sendSms(phone, message, retryCount);
 }
