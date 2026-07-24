@@ -36,6 +36,7 @@ model CompanyProfile {
   website          String?
   socialMediaLinks String?
   bankAccountNo    String?
+  routingNo        String?
   bankName         String?
   bankBranch       String?
   address          String?

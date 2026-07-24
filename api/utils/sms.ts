@@ -53,7 +53,12 @@ export async function checkSmsBalance(): Promise<string> {
     const data = response.data;
     
     if (data && (data.statusCode === "200" || data.statusCode == 200)) {
-      return `${data.responseResult}`;
+      if (data.data && Array.isArray(data.data) && data.data[0] && data.data[0].balance !== undefined) {
+        return `${data.data[0].balance}`;
+      }
+      if (data.responseResult !== undefined) {
+        return `${data.responseResult}`;
+      }
     }
     
     return "Error";

@@ -13,7 +13,7 @@ export default function CompanyProfile() {
     name: "", shortCode: "", establishedYear: "", registrationNo: "",
     tinNo: "", vatNo: "", tradeLicenseNo: "", hotline: "",
     website: "", socialMediaLinks: "", bankName: "", bankBranch: "",
-    bankAccountNo: "", address: ""
+    bankAccountNo: "", routingNo: "", address: ""
   });
   
   const [logoFile, setLogoFile] = useState<File | null>(null);
@@ -40,6 +40,7 @@ export default function CompanyProfile() {
             bankName: res.data.bankName || "",
             bankBranch: res.data.bankBranch || "",
             bankAccountNo: res.data.bankAccountNo || "",
+            routingNo: res.data.routingNo || "",
             address: res.data.address || ""
           });
           setExistingLogo(res.data.logo);
@@ -194,7 +195,7 @@ export default function CompanyProfile() {
             <Landmark size={18} />
             ব্যাংক অ্যাকাউন্ট তথ্য
           </div>
-          <div className="p-6 grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="p-6 grid grid-cols-1 md:grid-cols-4 gap-6">
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1">ব্যাংক-এর নাম</label>
               <input name="bankName" value={formData.bankName} onChange={handleChange} type="text" className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" />
@@ -206,6 +207,10 @@ export default function CompanyProfile() {
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1">অ্যাকাউন্ট নম্বর</label>
               <input name="bankAccountNo" value={formData.bankAccountNo} onChange={handleChange} type="text" className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">রাউটিং নম্বর</label>
+              <input name="routingNo" value={formData.routingNo} onChange={handleChange} type="text" className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" />
             </div>
           </div>
         </div>

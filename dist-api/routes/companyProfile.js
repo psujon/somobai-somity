@@ -31,7 +31,7 @@ router.get("/", async (req, res) => {
 router.use(authenticateToken);
 // Upsert company profile
 router.post("/", upload.single("logo"), async (req, res) => {
-    const { name, shortCode, establishedYear, registrationNo, tinNo, vatNo, tradeLicenseNo, hotline, website, socialMediaLinks, bankAccountNo, bankName, bankBranch, address } = req.body;
+    const { name, shortCode, establishedYear, registrationNo, tinNo, vatNo, tradeLicenseNo, hotline, website, socialMediaLinks, bankAccountNo, routingNo, bankName, bankBranch, address } = req.body;
     const logoPath = req.file ? `/uploads/${req.file.filename}` : undefined;
     try {
         const profiles = await prisma.$queryRaw `SELECT * FROM companyprofile LIMIT 1`;
@@ -53,6 +53,7 @@ router.post("/", upload.single("logo"), async (req, res) => {
           website = ${website || null},
           socialMediaLinks = ${socialMediaLinks || null},
           bankAccountNo = ${bankAccountNo || null},
+          routingNo = ${routingNo || null},
           bankName = ${bankName || null},
           bankBranch = ${bankBranch || null},
           address = ${address || null},
@@ -66,11 +67,11 @@ router.post("/", upload.single("logo"), async (req, res) => {
         INSERT INTO companyprofile (
           id, name, shortCode, logo, establishedYear, registrationNo, tinNo,
           vatNo, tradeLicenseNo, hotline, website, socialMediaLinks,
-          bankAccountNo, bankName, bankBranch, address, createdAt, updatedAt
+          bankAccountNo, routingNo, bankName, bankBranch, address, createdAt, updatedAt
         ) VALUES (
           '1', ${name || null}, ${shortCode || null}, ${logoPath || null}, ${establishedYear || null}, ${registrationNo || null}, ${tinNo || null},
           ${vatNo || null}, ${tradeLicenseNo || null}, ${hotline || null}, ${website || null}, ${socialMediaLinks || null},
-          ${bankAccountNo || null}, ${bankName || null}, ${bankBranch || null}, ${address || null}, NOW(), NOW()
+          ${bankAccountNo || null}, ${routingNo || null}, ${bankName || null}, ${bankBranch || null}, ${address || null}, NOW(), NOW()
         )
       `;
         }
