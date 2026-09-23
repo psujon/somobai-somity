@@ -293,6 +293,308 @@ router.get("/reports/association-income-expense", async (req, res) => {
         res.status(500).json({ message: "Error fetching income-expense report" });
     }
 });
+// GET /api/savings/reports/monthly-association-income-expense — মাসিক সমিতি আয়-ব্যয় বিবরণী
+router.get("/reports/monthly-association-income-expense", async (req, res) => {
+    try {
+        let targetMonth = req.query.month || "";
+        if (!targetMonth) {
+            const now = new Date();
+            targetMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+        }
+        const [yStr, mStr] = targetMonth.split("-");
+        const y = parseInt(yStr);
+        const m = parseInt(mStr);
+        const startDate = new Date(y, m - 1, 1, 0, 0, 0, 0);
+        const lastDay = new Date(y, m, 0).getDate();
+        const endDate = new Date(y, m - 1, lastDay, 23, 59, 59, 999);
+        // ১. বিগত মাসসমূহের মোট আয় ও মোট ব্যয় (যাহা startDate এর পূর্বে সংঘটিত)
+        const previousVouchers = await prisma.voucher.findMany({
+            where: {
+                date: {
+                    lt: startDate,
+                },
+            },
+            select: {
+                type: true,
+                amount: true,
+            },
+        });
+        let previousTotalIncome = 0;
+        let previousTotalExpense = 0;
+        for (const v of previousVouchers) {
+            if (v.type === "INCOME") {
+                previousTotalIncome += v.amount;
+            }
+            else if (v.type === "EXPENSE" || v.type === "INVESTMENT") {
+                previousTotalExpense += v.amount;
+            }
+        }
+        const previousNetBalance = previousTotalIncome - previousTotalExpense;
+        // ২. নির্বাচিত চলতি মাসের আয় ও ব্যয়
+        const currentVouchers = await prisma.voucher.findMany({
+            where: {
+                date: {
+                    gte: startDate,
+                    lte: endDate,
+                },
+            },
+            select: {
+                id: true,
+                voucherNo: true,
+                type: true,
+                category: true,
+                amount: true,
+                description: true,
+                date: true,
+            },
+            orderBy: { date: "asc" },
+        });
+        const incomeMap = {};
+        const expenseMap = {};
+        const investmentMap = {};
+        let currentMonthIncome = 0;
+        let currentMonthExpense = 0;
+        for (const v of currentVouchers) {
+            if (v.type === "INCOME") {
+                incomeMap[v.category] = (incomeMap[v.category] || 0) + v.amount;
+                currentMonthIncome += v.amount;
+            }
+            else if (v.type === "EXPENSE") {
+                expenseMap[v.category] = (expenseMap[v.category] || 0) + v.amount;
+                currentMonthExpense += v.amount;
+            }
+            else if (v.type === "INVESTMENT") {
+                investmentMap[v.category] = (investmentMap[v.category] || 0) + v.amount;
+                currentMonthExpense += v.amount;
+            }
+        }
+        const incomes = Object.entries(incomeMap).map(([category, amount]) => ({
+            category,
+            amount,
+        }));
+        const expenses = Object.entries(expenseMap).map(([category, amount]) => ({
+            category,
+            amount,
+        }));
+        const investments = Object.entries(investmentMap).map(([category, amount]) => ({
+            category,
+            amount,
+        }));
+        const currentMonthNetBalance = currentMonthIncome - currentMonthExpense;
+        const totalIncome = previousTotalIncome + currentMonthIncome;
+        const totalExpense = previousTotalExpense + currentMonthExpense;
+        const finalBalance = totalIncome - totalExpense;
+        res.json({
+            month: targetMonth,
+            startDate,
+            endDate,
+            incomes,
+            expenses,
+            investments,
+            summary: {
+                previousTotalIncome,
+                previousTotalExpense,
+                previousNetBalance,
+                currentMonthIncome,
+                currentMonthExpense,
+                currentMonthNetBalance,
+                totalIncome,
+                totalExpense,
+                finalBalance,
+            },
+        });
+    }
+    catch (error) {
+        console.error("Monthly association income-expense error:", error);
+        res.status(500).json({ message: "Error fetching monthly income-expense report" });
+    }
+});
+// GET /api/savings/reports/income-statement — আয়ের বিবরণী
+router.get("/reports/income-statement", async (req, res) => {
+    const { from, to, category } = req.query;
+    try {
+        const whereClause = {
+            type: "INCOME",
+            ...(from || to
+                ? {
+                    date: {
+                        ...(from ? { gte: new Date(from) } : {}),
+                        ...(to ? { lte: new Date(new Date(to).setHours(23, 59, 59)) } : {}),
+                    },
+                }
+                : {}),
+        };
+        if (category && category !== "ALL") {
+            whereClause.category = category;
+        }
+        const vouchers = await prisma.voucher.findMany({
+            where: whereClause,
+            include: {
+                member: { select: { name: true, memberId: true } },
+            },
+            orderBy: { date: "asc" },
+        });
+        const categoryMap = {};
+        let totalIncome = 0;
+        for (const v of vouchers) {
+            if (!categoryMap[v.category]) {
+                categoryMap[v.category] = { amount: 0, count: 0 };
+            }
+            categoryMap[v.category].amount += v.amount;
+            categoryMap[v.category].count += 1;
+            totalIncome += v.amount;
+        }
+        const categorySummary = Object.entries(categoryMap).map(([cat, data]) => ({
+            category: cat,
+            amount: data.amount,
+            count: data.count,
+        }));
+        res.json({
+            from: from || null,
+            to: to || null,
+            totalIncome,
+            totalCount: vouchers.length,
+            categorySummary,
+            vouchers,
+        });
+    }
+    catch (error) {
+        console.error("Income statement error:", error);
+        res.status(500).json({ message: "Error fetching income statement" });
+    }
+});
+// GET /api/savings/reports/expense-statement — ব্যয়ের বিবরণী
+router.get("/reports/expense-statement", async (req, res) => {
+    const { from, to, category, type } = req.query;
+    try {
+        const typeFilter = type && type !== "ALL"
+            ? type
+            : { in: ["EXPENSE", "INVESTMENT"] };
+        const whereClause = {
+            type: typeFilter,
+            ...(from || to
+                ? {
+                    date: {
+                        ...(from ? { gte: new Date(from) } : {}),
+                        ...(to ? { lte: new Date(new Date(to).setHours(23, 59, 59)) } : {}),
+                    },
+                }
+                : {}),
+        };
+        if (category && category !== "ALL") {
+            whereClause.category = category;
+        }
+        const vouchers = await prisma.voucher.findMany({
+            where: whereClause,
+            include: {
+                member: { select: { name: true, memberId: true } },
+            },
+            orderBy: { date: "asc" },
+        });
+        const expenseCategoryMap = {};
+        const investmentCategoryMap = {};
+        let totalExpense = 0;
+        let totalInvestment = 0;
+        for (const v of vouchers) {
+            if (v.type === "EXPENSE") {
+                if (!expenseCategoryMap[v.category]) {
+                    expenseCategoryMap[v.category] = { amount: 0, count: 0 };
+                }
+                expenseCategoryMap[v.category].amount += v.amount;
+                expenseCategoryMap[v.category].count += 1;
+                totalExpense += v.amount;
+            }
+            else if (v.type === "INVESTMENT") {
+                if (!investmentCategoryMap[v.category]) {
+                    investmentCategoryMap[v.category] = { amount: 0, count: 0 };
+                }
+                investmentCategoryMap[v.category].amount += v.amount;
+                investmentCategoryMap[v.category].count += 1;
+                totalInvestment += v.amount;
+            }
+        }
+        const expenseCategories = Object.entries(expenseCategoryMap).map(([cat, data]) => ({
+            category: cat,
+            amount: data.amount,
+            count: data.count,
+        }));
+        const investmentCategories = Object.entries(investmentCategoryMap).map(([cat, data]) => ({
+            category: cat,
+            amount: data.amount,
+            count: data.count,
+        }));
+        const grandTotalExpense = totalExpense + totalInvestment;
+        res.json({
+            from: from || null,
+            to: to || null,
+            totalExpense,
+            totalInvestment,
+            grandTotalExpense,
+            totalCount: vouchers.length,
+            expenseCategories,
+            investmentCategories,
+            vouchers,
+        });
+    }
+    catch (error) {
+        console.error("Expense statement error:", error);
+        res.status(500).json({ message: "Error fetching expense statement" });
+    }
+});
+// GET /api/savings/reports/investment-statement — বিনিয়োগ বিবরণী
+router.get("/reports/investment-statement", async (req, res) => {
+    const { from, to, category } = req.query;
+    try {
+        const whereClause = {
+            type: "INVESTMENT",
+            ...(from || to
+                ? {
+                    date: {
+                        ...(from ? { gte: new Date(from) } : {}),
+                        ...(to ? { lte: new Date(new Date(to).setHours(23, 59, 59)) } : {}),
+                    },
+                }
+                : {}),
+        };
+        if (category && category !== "ALL") {
+            whereClause.category = category;
+        }
+        const vouchers = await prisma.voucher.findMany({
+            where: whereClause,
+            include: {
+                member: { select: { name: true, memberId: true } },
+            },
+            orderBy: { date: "asc" },
+        });
+        const categoryMap = {};
+        let totalInvestment = 0;
+        for (const v of vouchers) {
+            if (!categoryMap[v.category]) {
+                categoryMap[v.category] = { amount: 0, count: 0 };
+            }
+            categoryMap[v.category].amount += v.amount;
+            categoryMap[v.category].count += 1;
+            totalInvestment += v.amount;
+        }
+        const categorySummary = Object.entries(categoryMap).map(([cat, data]) => ({
+            category: cat,
+            amount: data.amount,
+            count: data.count,
+        }));
+        res.json({
+            from: from || null,
+            to: to || null,
+            totalInvestment,
+            totalCount: vouchers.length,
+            categorySummary,
+            vouchers,
+        });
+    }
+    catch (error) {
+        console.error("Investment statement error:", error);
+        res.status(500).json({ message: "Error fetching investment statement" });
+    }
+});
 // GET /api/savings/statement/:memberId  — সদস্যের ব্যাংক স্টেটমেন্ট
 router.get("/statement/:memberId", async (req, res) => {
     const { memberId } = req.params;

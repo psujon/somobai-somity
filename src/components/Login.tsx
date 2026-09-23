@@ -2,19 +2,45 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import { useAuth } from "../context/AuthContext";
+import { Phone, Mail, ShieldCheck, ArrowLeft, RefreshCw } from "lucide-react";
 
 export default function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [phone, setPhone] = useState("");
+  const [memberEmail, setMemberEmail] = useState("");
+  const [memberLoginMethod, setMemberLoginMethod] = useState<"phone" | "email">("phone");
   const [otp, setOtp] = useState("");
   const [showOtpScreen, setShowOtpScreen] = useState(false);
   const [loginType, setLoginType] = useState<"admin" | "member" | null>(null);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [resendingOtp, setResendingOtp] = useState(false);
 
   const { login } = useAuth();
   const navigate = useNavigate();
+
+  const handleSendMemberOtp = async () => {
+    const payload = memberLoginMethod === "email"
+      ? { email: memberEmail.trim(), method: "email" }
+      : { phone: phone.trim(), method: "phone" };
+
+    const res = await axios.post(`${process.env.API_HOST}/api/auth/member-login`, payload);
+    return res.data;
+  };
+
+  const handleResendOtp = async () => {
+    setError("");
+    setResendingOtp(true);
+    try {
+      await handleSendMemberOtp();
+      setOtp("");
+    } catch (err: any) {
+      setError(err.response?.data?.message || "ওটিপি পুনরায় পাঠাতে সমস্যা হয়েছে।");
+    } finally {
+      setResendingOtp(false);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -24,16 +50,17 @@ export default function Login() {
     try {
       if (loginType === "member") {
         if (!showOtpScreen) {
-          // Step 1: Send OTP
-          await axios.post(`${process.env.API_HOST}/api/auth/member-login`, {
-            phone,
-          });
+          // Step 1: Send OTP via Phone or Email
+          await handleSendMemberOtp();
           setShowOtpScreen(true);
         } else {
           // Step 2: Verify OTP
+          const identifier = memberLoginMethod === "email" ? memberEmail.trim() : phone.trim();
           const res = await axios.post(`${process.env.API_HOST}/api/auth/verify-otp`, {
-            phone,
-            otp,
+            identifier,
+            phone: memberLoginMethod === "phone" ? phone.trim() : undefined,
+            email: memberLoginMethod === "email" ? memberEmail.trim() : undefined,
+            otp: otp.trim(),
           });
           login(res.data.token, res.data.user);
           navigate("/member-dashboard");
@@ -47,7 +74,15 @@ export default function Login() {
         navigate("/");
       }
     } catch (err: any) {
-      setError(err.response?.data?.message || (loginType === "member" ? (showOtpScreen ? "ভুল ওটিপি কোড।" : "লগইন ব্যর্থ হয়েছে। মোবাইল নম্বর যাচাই করুন।") : "লগইন ব্যর্থ হয়েছে। ইমেইল এবং পাসওয়ার্ড যাচাই করুন।"));
+      if (loginType === "member") {
+        if (showOtpScreen) {
+          setError(err.response?.data?.message || "ভুল ওটিপি কোড। অনুগ্রহ করে সঠিক কোড দিন।");
+        } else {
+          setError(err.response?.data?.message || (memberLoginMethod === "email" ? "লগইন ব্যর্থ হয়েছে। ইমেইল অ্যাড্রেস যাচাই করুন।" : "লগইন ব্যর্থ হয়েছে। মোবাইল নম্বর যাচাই করুন।"));
+        }
+      } else {
+        setError(err.response?.data?.message || "লগইন ব্যর্থ হয়েছে। ইমেইল এবং পাসওয়ার্ড যাচাই করুন।");
+      }
     } finally {
       setLoading(false);
     }
@@ -62,9 +97,7 @@ export default function Login() {
         <div className="absolute -bottom-[10%] left-[20%] w-[45vw] h-[45vw] rounded-full bg-sky-300/30 blur-3xl animate-[spin_30s_linear_infinite] origin-top"></div>
       </div>
 
-      <div className="max-w-md w-full bg-white/80 backdrop-blur-md rounded-2xl shadow-xl overflow-hidden z-10 border border-white/50">
-
-
+      <div className="max-w-md w-full bg-white/85 backdrop-blur-md rounded-2xl shadow-xl overflow-hidden z-10 border border-white/60">
         <div className="p-8">
           <h2 className="text-2xl font-bold text-gray-800 mb-6 text-center">
             {loginType === null
@@ -105,7 +138,7 @@ export default function Login() {
           ) : (
             <>
               {error && (
-                <div className="bg-red-50 border-l-4 border-red-500 text-red-700 p-4 rounded mb-6 text-sm">
+                <div className="bg-red-50 border-l-4 border-red-500 text-red-700 p-4 rounded-lg mb-6 text-sm">
                   {error}
                 </div>
               )}
@@ -113,30 +146,115 @@ export default function Login() {
               <form onSubmit={handleSubmit} className="space-y-5">
                 {loginType === "member" ? (
                   showOtpScreen ? (
-                    <div>
-                      <label className="block text-sm font-semibold text-gray-700 mb-1">ওটিপি কোড (৪ ডিজিট)</label>
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-center gap-2 text-blue-600 mb-1">
+                        <ShieldCheck size={28} />
+                      </div>
+                      <label className="block text-sm font-semibold text-gray-700 text-center">৪ ডিজিটের ওটিপি কোড লিখুন</label>
                       <input
                         type="text"
                         value={otp}
                         onChange={(e) => setOtp(e.target.value)}
                         required
                         maxLength={4}
-                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition text-center tracking-widest text-lg font-bold"
+                        autoFocus
+                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition text-center tracking-widest text-2xl font-bold bg-slate-50"
                         placeholder="XXXX"
                       />
-                      <p className="text-xs text-gray-500 mt-1 text-center">আপনার মোবাইলে পাঠানো ৪ ডিজিটের ওটিপি কোডটি লিখুন।</p>
+                      <p className="text-xs text-gray-500 text-center">
+                        {memberLoginMethod === "email" ? (
+                          <>আপনার নিবন্ধিত ইমেইল <strong className="text-blue-600 font-semibold">{memberEmail}</strong>-এ পাঠানো কোডটি লিখুন।</>
+                        ) : (
+                          <>আপনার নিবন্ধিত মোবাইল নম্বর <strong className="text-blue-600 font-semibold">{phone}</strong>-এ পাঠানো কোডটি লিখুন।</>
+                        )}
+                      </p>
+
+                      {/* Resend OTP button */}
+                      <div className="text-center pt-1">
+                        <button
+                          type="button"
+                          onClick={handleResendOtp}
+                          disabled={resendingOtp}
+                          className="inline-flex items-center gap-1.5 text-xs font-semibold text-blue-600 hover:text-blue-800 disabled:opacity-50 transition"
+                        >
+                          <RefreshCw size={12} className={resendingOtp ? "animate-spin" : ""} />
+                          {resendingOtp ? "ওটিপি পাঠানো হচ্ছে..." : "ওটিপি পুনরায় পাঠান"}
+                        </button>
+                      </div>
                     </div>
                   ) : (
-                    <div>
-                      <label className="block text-sm font-semibold text-gray-700 mb-1">মোবাইল নম্বর</label>
-                      <input
-                        type="text"
-                        value={phone}
-                        onChange={(e) => setPhone(e.target.value)}
-                        required
-                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition"
-                        placeholder="01XXXXXXXXX"
-                      />
+                    <div className="space-y-4">
+                      {/* মোবাইল / ইমেইল মেথড সিলেক্টর ট্যাব */}
+                      <div className="flex bg-slate-100 p-1 rounded-xl border border-slate-200">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setMemberLoginMethod("phone");
+                            setError("");
+                          }}
+                          className={`flex-1 py-2 px-3 rounded-lg font-medium text-sm transition flex items-center justify-center gap-1.5 ${
+                            memberLoginMethod === "phone"
+                              ? "bg-white text-blue-700 shadow-sm font-semibold"
+                              : "text-slate-600 hover:text-slate-800"
+                          }`}
+                        >
+                          <Phone size={15} />
+                          মোবাইল নম্বর
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setMemberLoginMethod("email");
+                            setError("");
+                          }}
+                          className={`flex-1 py-2 px-3 rounded-lg font-medium text-sm transition flex items-center justify-center gap-1.5 ${
+                            memberLoginMethod === "email"
+                              ? "bg-white text-blue-700 shadow-sm font-semibold"
+                              : "text-slate-600 hover:text-slate-800"
+                          }`}
+                        >
+                          <Mail size={15} />
+                          ইমেইল আইডি
+                        </button>
+                      </div>
+
+                      {memberLoginMethod === "phone" ? (
+                        <div>
+                          <label className="block text-sm font-semibold text-gray-700 mb-1.5">সদস্যের মোবাইল নম্বর</label>
+                          <div className="relative">
+                            <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+                              <Phone size={16} />
+                            </div>
+                            <input
+                              type="tel"
+                              value={phone}
+                              onChange={(e) => setPhone(e.target.value)}
+                              required
+                              className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition"
+                              placeholder="01XXXXXXXXX"
+                            />
+                          </div>
+                          <p className="text-xs text-slate-500 mt-1">আপনার সমিতির নিবন্ধিত মোবাইল নম্বর দিন।</p>
+                        </div>
+                      ) : (
+                        <div>
+                          <label className="block text-sm font-semibold text-gray-700 mb-1.5">সদস্যের ইমেইল অ্যাড্রেস</label>
+                          <div className="relative">
+                            <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+                              <Mail size={16} />
+                            </div>
+                            <input
+                              type="email"
+                              value={memberEmail}
+                              onChange={(e) => setMemberEmail(e.target.value)}
+                              required
+                              className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition"
+                              placeholder="example@gmail.com"
+                            />
+                          </div>
+                          <p className="text-xs text-slate-500 mt-1">আপনার সমিতির প্রোফাইলে যুক্ত ইমেইল আইডি দিন।</p>
+                        </div>
+                      )}
                     </div>
                   )
                 ) : (
@@ -149,7 +267,7 @@ export default function Login() {
                         onChange={(e) => setEmail(e.target.value)}
                         required
                         className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition"
-                        placeholder=""
+                        placeholder="admin@example.com"
                       />
                     </div>
 
@@ -161,7 +279,7 @@ export default function Login() {
                         onChange={(e) => setPassword(e.target.value)}
                         required
                         className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition"
-                        placeholder=""
+                        placeholder="••••••••"
                       />
                     </div>
                   </>
@@ -170,18 +288,18 @@ export default function Login() {
                 <button
                   type="submit"
                   disabled={loading}
-                  className="w-full bg-blue-600 text-white py-3 rounded-lg font-bold hover:bg-blue-700 transition disabled:opacity-70 flex justify-center items-center"
+                  className="w-full bg-blue-600 text-white py-3 rounded-lg font-bold hover:bg-blue-700 transition disabled:opacity-70 flex justify-center items-center shadow-md hover:shadow-lg"
                 >
                   {loading
                     ? (loginType === "member"
                       ? (showOtpScreen
                         ? "ওটিপি ভেরিফাই হচ্ছে..."
-                        : "ওটিপি পাঠানো হচ্ছে...")
+                        : "ওটিপি কোড পাঠানো হচ্ছে...")
                       : "লগইন হচ্ছে...")
                     : (loginType === "member"
                       ? (showOtpScreen
-                        ? "ভেরিফাই ওটিপি"
-                        : "ওটিপি পাঠান")
+                        ? "ভেরিফাই ও লগইন করুন"
+                        : "ওটিপি কোড পাঠান")
                       : "লগইন")}
                 </button>
 
@@ -194,9 +312,10 @@ export default function Login() {
                         setOtp("");
                         setError("");
                       }}
-                      className="text-sm font-medium text-gray-500 hover:text-gray-700 transition"
+                      className="inline-flex items-center gap-1.5 text-sm font-medium text-gray-500 hover:text-gray-700 transition"
                     >
-                      ← পিছনে যান (মোবাইল নম্বর পরিবর্তন করুন)
+                      <ArrowLeft size={14} />
+                      পিছনে যান ({memberLoginMethod === "email" ? "ইমেইল পরিবর্তন করুন" : "মোবাইল নম্বর পরিবর্তন করুন"})
                     </button>
                   ) : (
                     <button
@@ -205,9 +324,10 @@ export default function Login() {
                         setLoginType(null);
                         setError("");
                       }}
-                      className="text-sm font-medium text-gray-500 hover:text-gray-700 transition"
+                      className="inline-flex items-center gap-1.5 text-sm font-medium text-gray-500 hover:text-gray-700 transition"
                     >
-                      ← লগইন ধরন পরিবর্তন করুন
+                      <ArrowLeft size={14} />
+                      লগইন ধরন পরিবর্তন করুন
                     </button>
                   )}
                 </div>
@@ -219,3 +339,4 @@ export default function Login() {
     </div>
   );
 }
+

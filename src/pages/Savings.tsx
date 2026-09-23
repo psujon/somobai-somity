@@ -426,11 +426,11 @@ export default function Savings() {
       {/* Monthly Summary Status Modal */}
       {showStatusModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-5xl max-h-[90vh] overflow-hidden flex flex-col">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-6xl max-h-[100vh] overflow-hidden flex flex-col">
             {/* হেডার */}
             <div className="p-5 border-b flex justify-between items-center bg-gradient-to-r from-orange-600 to-amber-500">
               <div>
-                <h3 className="text-lg font-bold text-white">মাসওয়াইজ সঞ্চয় সারসংক্ষেপ</h3>
+                <h3 className="text-lg font-bold text-white">সদস্যের মাস অনুযায়ী সঞ্চয় সামারী</h3>
                 {selectedMemberForStatus && (
                   <p className="text-orange-100 text-sm mt-0.5">
                     {selectedMemberForStatus.name} &middot; {selectedMemberForStatus.memberId}
@@ -480,11 +480,11 @@ export default function Savings() {
                             {months.map((val: number, i: number) => (
                               <td key={i} className={`px-3 py-3 border border-slate-200 text-right ${val > 0 ? "text-green-700 font-medium" : "text-slate-300"
                                 }`}>
-                                {val > 0 ? `৳ ${val.toLocaleString()}` : "-"}
+                                {val > 0 ? `${val.toLocaleString()}` : "-"}
                               </td>
                             ))}
                             <td className="px-3 py-3 border border-orange-200 text-right font-bold text-orange-700 bg-orange-50">
-                              ৳ {total.toLocaleString()}
+                              {total.toLocaleString()}
                             </td>
                           </tr>
                         );
@@ -499,12 +499,12 @@ export default function Savings() {
                           return (
                             <td key={col} className={`px-3 py-3 border border-orange-300 text-right ${colTotal > 0 ? "text-green-800" : "text-slate-400"
                               }`}>
-                              {colTotal > 0 ? `৳ ${colTotal.toLocaleString()}` : "-"}
+                              {colTotal > 0 ? `${colTotal.toLocaleString()}` : "-"}
                             </td>
                           );
                         })}
                         <td className="px-3 py-3 border border-orange-300 text-right text-orange-900 bg-orange-200">
-                          ৳ {monthlySummary.reduce((s: number, r: any) => {
+                          {monthlySummary.reduce((s: number, r: any) => {
                             return s + ["jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"]
                               .reduce((ms, col) => ms + (r[col] || 0), 0);
                           }, 0).toLocaleString()}

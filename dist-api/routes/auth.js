@@ -3,6 +3,7 @@ import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import prisma from "../db.js";
 import { sendSms } from "../utils/sms.js";
+import { sendOtpEmail } from "../utils/email.js";
 import { authenticateToken } from "../middleware/auth.js";
 const router = express.Router();
 // Temporary store for login OTPs
@@ -124,67 +125,114 @@ router.get("/me", async (req, res) => {
         res.status(403).json({ message: "Invalid Token" });
     }
 });
+// POST /api/auth/member-login — মেম্বার ওটিপি সেন্ড (মোবাইল / ইমেইল)
 router.post("/member-login", async (req, res) => {
-    const { phone } = req.body;
-    if (!phone) {
-        return res.status(400).json({ message: "মোবাইল নম্বর প্রয়োজন" });
+    const { phone, email, method } = req.body;
+    const isEmail = method === "email" || (email && !phone);
+    if (isEmail) {
+        if (!email || !email.trim()) {
+            return res.status(400).json({ message: "ইমেইল অ্যাড্রেস প্রয়োজন" });
+        }
+    }
+    else {
+        if (!phone || !phone.trim()) {
+            return res.status(400).json({ message: "মোবাইল নম্বর প্রয়োজন" });
+        }
     }
     try {
-        const trimmedPhone = phone.trim();
-        // Check if member exists
-        const member = await prisma.member.findFirst({
-            where: { phone: trimmedPhone }
-        });
-        if (!member) {
-            return res.status(400).json({ message: "এই ফোন নম্বরে কোনো সদস্য খুঁজে পাওয়া যায়নি।" });
+        if (isEmail) {
+            const trimmedEmail = email.trim().toLowerCase();
+            // Check if member exists by email
+            const member = await prisma.member.findFirst({
+                where: { email: trimmedEmail }
+            });
+            if (!member) {
+                return res.status(400).json({ message: "এই ইমেইল ঠিকানায় কোনো সদস্য খুঁজে পাওয়া যায়নি।" });
+            }
+            // Generate 4-digit OTP code
+            const otp = Math.floor(1000 + Math.random() * 9000).toString();
+            const expiresAt = new Date(Date.now() + 5 * 60 * 1000); // 5 minutes expiration
+            // Store in-memory with email key
+            otpStore.set(trimmedEmail, { otp, expiresAt });
+            console.log(`[OTP Verification] Generated Email OTP for ${trimmedEmail}: ${otp} (Expires at ${expiresAt.toLocaleTimeString()})`);
+            // Send via Email
+            const emailSent = await sendOtpEmail(trimmedEmail, otp, member.name);
+            if (!emailSent) {
+                console.warn(`[OTP Verification] Email dispatch failed for ${trimmedEmail}. Using fallback console OTP.`);
+            }
+            return res.json({
+                message: "আপনার ইমেইলে ওটিপি কোড পাঠানো হয়েছে",
+                method: "email",
+                identifier: trimmedEmail
+            });
         }
-        // Generate 4-digit OTP code
-        const otp = Math.floor(1000 + Math.random() * 9000).toString();
-        const expiresAt = new Date(Date.now() + 5 * 60 * 1000); // 5 minutes expiration
-        // Store in-memory
-        otpStore.set(trimmedPhone, { otp, expiresAt });
-        // Print to console so developers can log in without SMS credits
-        console.log(`[OTP Verification] Generated OTP for ${trimmedPhone}: ${otp} (Expires at ${expiresAt.toLocaleTimeString()})`);
-        // Send via SMS
-        const message = `আপনার লগইন কোডটি হলো: ${otp}`;
-        await sendSms(trimmedPhone, message);
-        res.json({ message: "ওটিপি কোড পাঠানো হয়েছে" });
+        else {
+            const trimmedPhone = phone.trim();
+            // Check if member exists by phone
+            const member = await prisma.member.findFirst({
+                where: { phone: trimmedPhone }
+            });
+            if (!member) {
+                return res.status(400).json({ message: "এই ফোন নম্বরে কোনো সদস্য খুঁজে পাওয়া যায়নি।" });
+            }
+            // Generate 4-digit OTP code
+            const otp = Math.floor(1000 + Math.random() * 9000).toString();
+            const expiresAt = new Date(Date.now() + 5 * 60 * 1000); // 5 minutes expiration
+            // Store in-memory with phone key
+            otpStore.set(trimmedPhone, { otp, expiresAt });
+            console.log(`[OTP Verification] Generated SMS OTP for ${trimmedPhone}: ${otp} (Expires at ${expiresAt.toLocaleTimeString()})`);
+            // Send via SMS
+            const message = `আপনার লগইন কোডটি হলো: ${otp}`;
+            await sendSms(trimmedPhone, message);
+            return res.json({
+                message: "আপনার মোবাইলে ওটিপি কোড পাঠানো হয়েছে",
+                method: "phone",
+                identifier: trimmedPhone
+            });
+        }
     }
     catch (error) {
         console.error("Member login error:", error);
         res.status(500).json({ message: "সার্ভার এরর" });
     }
 });
+// POST /api/auth/verify-otp — ওটিপি ভেরিফিকেশন (মোবাইল / ইমেইল)
 router.post("/verify-otp", async (req, res) => {
-    const { phone, otp } = req.body;
-    if (!phone || !otp) {
-        return res.status(400).json({ message: "ফোন নম্বর এবং ওটিপি কোড প্রয়োজন" });
+    const { phone, email, identifier, otp } = req.body;
+    const rawIdentifier = (identifier || email || phone || "").trim();
+    if (!rawIdentifier || !otp) {
+        return res.status(400).json({ message: "মোবাইল/ইমেইল এবং ওটিপি কোড প্রয়োজন" });
     }
     try {
-        const trimmedPhone = phone.trim();
         const trimmedOtp = otp.trim();
-        const storedData = otpStore.get(trimmedPhone);
+        const isEmail = rawIdentifier.includes("@");
+        const key = isEmail ? rawIdentifier.toLowerCase() : rawIdentifier;
+        const storedData = otpStore.get(key) || otpStore.get(rawIdentifier);
         if (!storedData || storedData.otp !== trimmedOtp) {
             return res.status(400).json({ message: "ভুল ওটিপি কোড।" });
         }
         if (new Date() > storedData.expiresAt) {
-            otpStore.delete(trimmedPhone);
+            otpStore.delete(key);
+            otpStore.delete(rawIdentifier);
             return res.status(400).json({ message: "ওটিপি কোডের মেয়াদ শেষ হয়ে গেছে।" });
         }
         // OTP verified, clear it
-        otpStore.delete(trimmedPhone);
+        otpStore.delete(key);
+        otpStore.delete(rawIdentifier);
         // Get member details
         const member = await prisma.member.findFirst({
-            where: { phone: trimmedPhone }
+            where: isEmail
+                ? { email: { equals: key } }
+                : { phone: rawIdentifier }
         });
         if (!member) {
             return res.status(400).json({ message: "সদস্য পাওয়া যায়নি।" });
         }
-        const token = jwt.sign({ id: trimmedPhone, email: member.email || "", role: "MEMBER" }, process.env.JWT_SECRET || "super-secret-jwt-key", { expiresIn: "1d" });
+        const token = jwt.sign({ id: member.phone, email: member.email || "", role: "MEMBER" }, process.env.JWT_SECRET || "super-secret-jwt-key", { expiresIn: "1d" });
         res.json({
             token,
             user: {
-                id: trimmedPhone,
+                id: member.phone,
                 name: member.name,
                 email: member.email || "",
                 role: "MEMBER",
