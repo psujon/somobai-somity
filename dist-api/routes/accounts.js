@@ -5,14 +5,18 @@ const router = express.Router();
 router.use(authenticateToken);
 // Get all vouchers
 router.get("/", async (req, res) => {
-    const { type, category, memberId, amount } = req.query;
-    const whereClause = {};
+    const { type, category, memberId, amount, projectId } = req.query;
+    const whereClause = {
+        category: { not: "Savings Deposit" },
+    };
     if (type)
         whereClause.type = type;
     if (category)
         whereClause.category = category;
     if (memberId)
         whereClause.memberId = memberId;
+    if (projectId)
+        whereClause.projectId = projectId;
     if (amount) {
         const numAmount = parseFloat(amount);
         if (!isNaN(numAmount)) {
@@ -21,7 +25,7 @@ router.get("/", async (req, res) => {
     }
     try {
         const vouchers = await prisma.voucher.findMany({
-            take: 50,
+            take: 200,
             where: whereClause,
             include: {
                 member: { select: { name: true, memberId: true } },
@@ -30,7 +34,8 @@ router.get("/", async (req, res) => {
                 },
                 loan: {
                     include: { member: { select: { name: true, memberId: true } } }
-                }
+                },
+                project: { select: { id: true, name: true, code: true } }
             },
             orderBy: { id: "desc" },
         });
@@ -68,7 +73,7 @@ async function getNextVoucherRef() {
 }
 // Create a voucher
 router.post("/", async (req, res) => {
-    const { type, category, amount, description, memberId, savingsAccountId, loanId, date, voucherNo } = req.body;
+    const { type, category, amount, description, memberId, savingsAccountId, loanId, date, voucherNo, projectId } = req.body;
     const numAmount = parseFloat(amount);
     if (!type || !category || isNaN(numAmount) || numAmount <= 0) {
         return res.status(400).json({ message: "Invalid input data" });
@@ -87,11 +92,13 @@ router.post("/", async (req, res) => {
                 memberId: memberId || null,
                 savingsAccountId: savingsAccountId || null,
                 loanId: loanId || null,
+                projectId: projectId || null,
                 date: finalDate,
                 voucherRef,
             },
             include: {
                 member: { select: { name: true, memberId: true } },
+                project: { select: { id: true, name: true, code: true } },
             }
         });
         res.status(201).json(voucher);
@@ -104,7 +111,7 @@ router.post("/", async (req, res) => {
 // Update a voucher
 router.put("/:id", async (req, res) => {
     const { id } = req.params;
-    const { type, category, amount, description, memberId, date, voucherNo } = req.body;
+    const { type, category, amount, description, memberId, date, voucherNo, projectId } = req.body;
     const numAmount = parseFloat(amount);
     if (!type || !category || isNaN(numAmount) || numAmount <= 0) {
         return res.status(400).json({ message: "Invalid input data" });
@@ -128,11 +135,13 @@ router.put("/:id", async (req, res) => {
                 amount: numAmount,
                 description,
                 memberId: memberId || null,
+                projectId: projectId !== undefined ? (projectId || null) : undefined,
                 date: date ? new Date(date) : undefined,
                 voucherNo: voucherNo || null,
             },
             include: {
                 member: { select: { name: true, memberId: true } },
+                project: { select: { id: true, name: true, code: true } },
             }
         });
         res.json(updatedVoucher);

@@ -1,20 +1,22 @@
 import { useState, useEffect, useMemo } from "react";
 import axios from "axios";
 import { useAuth } from "../context/AuthContext";
-import { Plus, Search } from "lucide-react";
+import { Plus, Search, Building2 } from "lucide-react";
 import { toast } from "react-toastify";
 
 export default function Accounts() {
   const [transactions, setTransactions] = useState([]);
   const [members, setMembers] = useState([]);
   const [categories, setCategories] = useState<any[]>([]);
+  const [projects, setProjects] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [searchFilters, setSearchFilters] = useState({
     type: "",
     category: "",
     memberId: "",
-    amount: ""
+    amount: "",
+    projectId: ""
   });
   const [allCategories, setAllCategories] = useState<any[]>([]);
   const [memberSearchQuery, setMemberSearchQuery] = useState("");
@@ -33,7 +35,8 @@ export default function Accounts() {
     memberId: "",
     depositMonth: "",
     date: new Date().toISOString().split("T")[0],
-    voucherNo: ""
+    voucherNo: "",
+    projectId: ""
   });
 
   const handleLastTransaction = () => {
@@ -59,6 +62,7 @@ export default function Accounts() {
       if (filters.type) params.append("type", filters.type);
       if (filters.category) params.append("category", filters.category);
       if (filters.memberId) params.append("memberId", filters.memberId);
+      if (filters.projectId) params.append("projectId", filters.projectId);
       if (filters.amount) params.append("amount", filters.amount);
 
       const res = await axios.get(`${process.env.API_HOST}/api/accounts?${params.toString()}`, {
@@ -105,11 +109,23 @@ export default function Accounts() {
     }
   };
 
+  const fetchProjects = async () => {
+    try {
+      const res = await axios.get(`${process.env.API_HOST}/api/projects`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setProjects(res.data.projects || []);
+    } catch (error) {
+      console.error("Error fetching projects", error);
+    }
+  };
+
   useEffect(() => {
     fetchTransactions();
     fetchMembers();
     fetchCategories("INCOME"); // default type
     fetchAllCategories();
+    fetchProjects();
   }, []);
 
   // When voucher type changes, reload category list and reset category
@@ -129,7 +145,8 @@ export default function Accounts() {
       memberId: "",
       depositMonth: "",
       date: new Date().toISOString().split("T")[0],
-      voucherNo: ""
+      voucherNo: "",
+      projectId: ""
     });
     setShowModal(true);
   };
@@ -146,7 +163,8 @@ export default function Accounts() {
       memberId: tx.memberId || "",
       depositMonth: tx.depositMonth || "",
       date: tx.date ? new Date(tx.date).toISOString().split("T")[0] : "",
-      voucherNo: tx.voucherNo || ""
+      voucherNo: tx.voucherNo || "",
+      projectId: tx.projectId || ""
     });
     fetchCategories(tx.type);
     setShowModal(true);
@@ -192,7 +210,8 @@ export default function Accounts() {
         memberId: "",
         depositMonth: "",
         date: new Date().toISOString().split("T")[0],
-        voucherNo: ""
+        voucherNo: "",
+        projectId: ""
       });
     } catch (error: any) {
       toast.error(error.response?.data?.message || "ভাউচার প্রসেস করতে সমস্যা হয়েছে");
@@ -263,7 +282,9 @@ export default function Accounts() {
     fetchTransactions();
   };
 
-  const filteredTx = transactions;
+  const filteredTx = useMemo(() => {
+    return (transactions || []).filter((tx: any) => tx.category !== "Savings Deposit");
+  }, [transactions]);
 
   return (
     <div className="space-y-6">
@@ -302,6 +323,18 @@ export default function Accounts() {
               <option value="">ক্যাটাগরি (সব)</option>
               {Array.from(new Set(allCategories.map(cat => cat.name))).map((catName: any) => (
                 <option key={catName} value={catName}>{catName}</option>
+              ))}
+            </select>
+
+            {/* প্রজেক্ট ফিল্টার */}
+            <select
+              value={searchFilters.projectId}
+              onChange={e => setSearchFilters({ ...searchFilters, projectId: e.target.value })}
+              className="px-3 py-1.5 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white max-w-[170px]"
+            >
+              <option value="">প্রজেক্ট (সব)</option>
+              {projects.map((p: any) => (
+                <option key={p.id} value={p.id}>{p.name}</option>
               ))}
             </select>
 
@@ -366,6 +399,7 @@ export default function Accounts() {
                 <th className="px-4 py-3 font-medium">ভাউচার নং</th>
                 <th className="px-4 py-3 font-medium">ধরণ</th>
                 <th className="px-4 py-3 font-medium">ক্যাটাগরি</th>
+                <th className="px-4 py-3 font-medium">প্রজেক্ট</th>
                 <th className="px-4 py-3 font-medium">বিবরণ</th>
                 <th className="px-4 py-3 font-medium text-right">পরিমাণ (৳)</th>
                 <th className="px-4 py-3 font-medium text-center">অ্যাকশন</th>
@@ -373,9 +407,9 @@ export default function Accounts() {
             </thead>
             <tbody className="divide-y divide-slate-100">
               {loading ? (
-                <tr><td colSpan={9} className="text-center py-8 text-slate-500">লোড হচ্ছে...</td></tr>
+                <tr><td colSpan={10} className="text-center py-8 text-slate-500">লোড হচ্ছে...</td></tr>
               ) : filteredTx.length === 0 ? (
-                <tr><td colSpan={9} className="text-center py-8 text-slate-500">
+                <tr><td colSpan={10} className="text-center py-8 text-slate-500">
                   {Object.values(searchFilters).some(v => v !== "") ? "ফিল্টারিং ফলাফল — কোনো এন্ট্রি পাওয়া যায়নি" : "কোনো ট্রানজেকশন পাওয়া যায়নি"}
                 </td></tr>
               ) : filteredTx.map((tx: any) => {
@@ -424,6 +458,17 @@ export default function Accounts() {
                       <span className="text-slate-700 font-medium">
                         {tx.category}
                       </span>
+                    </td>
+                    {/* প্রজেক্ট */}
+                    <td className="px-4 py-4 whitespace-nowrap">
+                      {tx.project ? (
+                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs rounded-full font-medium bg-indigo-50 text-indigo-700 border border-indigo-200/80">
+                          <Building2 size={12} className="text-indigo-500 shrink-0" />
+                          {tx.project.name}
+                        </span>
+                      ) : (
+                        <span className="text-slate-400 text-xs">-</span>
+                      )}
                     </td>
                     {/* বিবরণ */}
                     <td className="px-4 py-4 text-slate-600 max-w-[200px] truncate" title={tx.description || ""}>
@@ -504,6 +549,23 @@ export default function Accounts() {
                     )}
                   </select>
                 </div>
+              </div>
+
+              {/* প্রজেক্ট নির্বাচন (ঐচ্ছিক) */}
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">প্রজেক্ট (ঐচ্ছিক)</label>
+                <select
+                  value={formData.projectId}
+                  onChange={e => setFormData({ ...formData, projectId: e.target.value })}
+                  className="w-full px-3 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                >
+                  <option value="">-- কোনো প্রজেক্ট নেই (সাধারণ / অফিসিয়াল হিসাব) --</option>
+                  {projects.map((p: any) => (
+                    <option key={p.id} value={p.id}>
+                      {p.name} {p.code ? `(${p.code})` : ""}
+                    </option>
+                  ))}
+                </select>
               </div>
 
               <div className="relative">

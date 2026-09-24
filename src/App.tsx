@@ -9,6 +9,7 @@ import Members from "./pages/Members";
 import Savings from "./pages/Savings";
 import Loans from "./pages/Loans";
 import Accounts from "./pages/Accounts";
+import Projects from "./pages/Projects";
 import Reports from "./pages/Reports";
 import CompanyProfile from "./pages/Settings/CompanyProfile";
 import MemberTypes from "./pages/Settings/MemberTypes";
@@ -101,6 +102,7 @@ function App() {
           <Route path="savings" element={<Savings />} />
           <Route path="loans" element={<Loans />} />
           <Route path="accounts" element={<Accounts />} />
+          <Route path="projects" element={<Projects />} />
           <Route path="reports" element={<Reports />} />
           <Route path="complaints" element={<Complaints />} />
           <Route path="backup" element={<DatabaseBackup />} />

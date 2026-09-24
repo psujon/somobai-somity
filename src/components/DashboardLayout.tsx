@@ -3,7 +3,7 @@ import { useAuth } from "../context/AuthContext";
 import {
   LayoutDashboard, Users, PiggyBank, CreditCard,
   FileText, Briefcase, Settings, LogOut, Menu, X, ChevronDown, ChevronRight,
-  Database, MessageSquareWarning
+  Database, MessageSquareWarning, Building2
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import axios from "axios";
@@ -102,6 +102,7 @@ export default function DashboardLayout() {
     { name: "সঞ্চয় ও আমানত", path: "/savings", icon: PiggyBank },
     { name: "ঋণ ব্যবস্থাপনা", path: "/loans", icon: CreditCard },
     { name: "হিসাবরক্ষণ ও ভাউচার", path: "/accounts", icon: Briefcase },
+    { name: "প্রজেক্ট হিসাব", path: "/projects", icon: Building2 },
     { name: "রিপোর্টস", path: "/reports", icon: FileText },
     {
       name: "সেটিংস",

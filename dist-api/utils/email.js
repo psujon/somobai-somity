@@ -31,9 +31,7 @@ export async function sendBackupEmail(filepath, filename) {
             },
         ],
     };
-    console.log(`[Backup Email] Sending database backup file to ${recipient}...`);
     await transporter.sendMail(mailOptions);
-    console.log(`[Backup Email] Backup email successfully sent to ${recipient}.`);
 }
 export async function sendOtpEmail(toEmail, otp, memberName) {
     const host = process.env.SMTP_HOST;
@@ -55,7 +53,7 @@ export async function sendOtpEmail(toEmail, otp, memberName) {
         },
     });
     const mailOptions = {
-        from: `"সমবায় সমিতি - সদস্য পোর্টাল" <${user}>`,
+        from: `"ফিউচার ভ্যালু প্রোপারটিজ লিমিটেড" <${user}>`,
         to: toEmail,
         subject: `লগইন ওটিপি কোড: ${otp}`,
         html: `
@@ -80,9 +78,7 @@ export async function sendOtpEmail(toEmail, otp, memberName) {
         text: `সম্মানিত সদস্য,\n\nআপনার সদস্য ড্যাশবোর্ডে লগইন করার ওটিপি কোড হলো: ${otp}\n\nএই কোডটির মেয়াদ ৫ মিনিট।\n\nধন্যবাদ।`
     };
     try {
-        console.log(`[OTP Email] Sending OTP email to ${toEmail}...`);
         await transporter.sendMail(mailOptions);
-        console.log(`[OTP Email] OTP email successfully sent to ${toEmail}.`);
         return true;
     }
     catch (err) {

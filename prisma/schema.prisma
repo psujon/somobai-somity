@@ -212,16 +212,36 @@ model Voucher {
   loanId           String?
   memberId         String?
   savingsAccountId String?
+  projectId        String?
   depositMonth     String?
   voucherRef       String?         @unique
   loan             Loan?           @relation(fields: [loanId], references: [id], map: "Voucher_loanId_fkey")
   member           Member?         @relation(fields: [memberId], references: [id], map: "Voucher_memberId_fkey")
   savingsAccount   SavingsAccount? @relation(fields: [savingsAccountId], references: [id], map: "Voucher_savingsAccountId_fkey")
+  project          Project?        @relation(fields: [projectId], references: [id], map: "Voucher_projectId_fkey")
 
   @@index([loanId], map: "Voucher_loanId_fkey")
   @@index([memberId], map: "Voucher_memberId_fkey")
   @@index([savingsAccountId], map: "Voucher_savingsAccountId_fkey")
+  @@index([projectId], map: "Voucher_projectId_fkey")
   @@map("voucher")
+}
+
+model Project {
+  id          String    @id @default(cuid())
+  name        String    @unique(map: "Project_name_key")
+  code        String?   @unique(map: "Project_code_key")
+  location    String?
+  budget      Float?    @default(0)
+  status      String    @default("ONGOING") // ONGOING, COMPLETED, PLANNED, PAUSED
+  startDate   DateTime?
+  endDate     DateTime?
+  description String?   @db.Text
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  vouchers    Voucher[]
+
+  @@map("project")
 }
 
 model AccountCategory {

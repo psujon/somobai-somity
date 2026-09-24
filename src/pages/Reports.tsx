@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import axios from "axios";
 import { useAuth } from "../context/AuthContext";
-import { FileText, Printer, Search, ChevronDown, ArrowDownCircle, ArrowUpCircle, Landmark, Download } from "lucide-react";
+import { FileText, Printer, Search, ChevronDown, ArrowDownCircle, ArrowUpCircle, Landmark, Download, Building2 } from "lucide-react";
 import { toast } from 'react-toastify';
 // @ts-ignore
 import html2pdf from 'html2pdf.js';
@@ -44,7 +44,7 @@ export default function Reports() {
   const [loadingMembers, setLoadingMembers] = useState(true);
 
   // ——— সমিতি আয়-ব্যয় বিবরণী ———
-  const [activeReportTab, setActiveReportTab] = useState<"member" | "association" | "monthly_association" | "income_statement" | "expense_statement" | "investment_statement">("member");
+  const [activeReportTab, setActiveReportTab] = useState<"member" | "association" | "monthly_association" | "income_statement" | "expense_statement" | "investment_statement" | "project_summary">("member");
   const [associationData, setAssociationData] = useState<any>(null);
   const [loadingAssociation, setLoadingAssociation] = useState(false);
 
@@ -68,10 +68,17 @@ export default function Reports() {
   const [investmentData, setInvestmentData] = useState<any>(null);
   const [loadingInvestment, setLoadingInvestment] = useState(false);
 
+  // ——— প্রজেক্ট বিবরণী ———
+  const [projectsList, setProjectsList] = useState<any[]>([]);
+  const [selectedProjectId, setSelectedProjectId] = useState<string>("ALL");
+  const [projectReportData, setProjectReportData] = useState<any>(null);
+  const [loadingProjectReport, setLoadingProjectReport] = useState(false);
+  const [projectVoucherSearch, setProjectVoucherSearch] = useState("");
+
   // ——— কোম্পানি প্রোফাইল ———
   const [companyProfile, setCompanyProfile] = useState<any>(null);
 
-  // সদস্য তালিকা ও কোম্পানি প্রোফাইল লোড
+  // সদস্য তালিকা, কোম্পানি প্রোফাইল ও প্রজেক্ট তালিকা লোড
   useEffect(() => {
     axios.get(`${process.env.API_HOST}/api/members`, {
       headers: { Authorization: `Bearer ${token}` },
@@ -81,6 +88,14 @@ export default function Reports() {
     axios.get(`${process.env.API_HOST}/api/company-profile`, {
       headers: { Authorization: `Bearer ${token}` },
     }).then(res => setCompanyProfile(res.data)).catch(() => { });
+
+    axios.get(`${process.env.API_HOST}/api/projects`, {
+      headers: { Authorization: `Bearer ${token}` },
+    }).then(res => {
+      if (res.data && res.data.projects) {
+        setProjectsList(res.data.projects);
+      }
+    }).catch(() => { });
   }, []);
 
   // স্টেটমেন্ট ফেচ
@@ -200,6 +215,36 @@ export default function Reports() {
       toast.error(err.response?.data?.message || "বিনিয়োগ বিবরণী লোড করতে ব্যর্থ হয়েছে");
     } finally {
       setLoadingInvestment(false);
+    }
+  };
+
+  // প্রজেক্ট বিবরণী ফেচ
+  const fetchProjectReport = async (overrideProjectId?: string) => {
+    const projIdToFetch = overrideProjectId !== undefined ? overrideProjectId : selectedProjectId;
+    setLoadingProjectReport(true);
+    setProjectReportData(null);
+    try {
+      const params = new URLSearchParams();
+      if (fromDate) params.append("from", fromDate);
+      if (toDate) params.append("to", toDate);
+
+      if (projIdToFetch === "ALL") {
+        const res = await axios.get(
+          `${process.env.API_HOST}/api/projects?${params.toString()}`,
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+        setProjectReportData({ mode: "ALL", data: res.data });
+      } else {
+        const res = await axios.get(
+          `${process.env.API_HOST}/api/projects/${projIdToFetch}?${params.toString()}`,
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+        setProjectReportData({ mode: "SINGLE", data: res.data });
+      }
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || "প্রজেক্ট বিবরণী লোড করতে ব্যর্থ হয়েছে");
+    } finally {
+      setLoadingProjectReport(false);
     }
   };
 
@@ -455,32 +500,35 @@ export default function Reports() {
     </body></html>`;
   };
 
-  const getMonthlyAssociationReportHTML = () => {
+  const getMonthlyAssociationReportHTML = (isForPdf: boolean = false) => {
     if (!monthlyData) return "";
 
+    const cellPadding = isForPdf ? "4px 8px" : "8px 12px";
+    const cellFontSize = isForPdf ? "10px" : "12px";
+
     const incomesHtml = monthlyData.incomes.length === 0
-      ? `<tr><td colspan="2" style="text-align:center;padding:12px;color:#94a3b8;">কোনো আয়ের বিবরণ পাওয়া যায়নি</td></tr>`
+      ? `<tr><td colspan="2" style="text-align:center;padding:${isForPdf ? '8px' : '12px'};color:#94a3b8;font-size:${cellFontSize};">কোনো আয়ের বিবরণ পাওয়া যায়নি</td></tr>`
       : monthlyData.incomes.map((inc: any) => `
           <tr>
-            <td style="padding:8px 12px;border:1px solid #cbd5e1;">${inc.category}</td>
-            <td style="padding:8px 12px;border:1px solid #cbd5e1;text-align:right;font-weight:600;color:#16a34a;">৳ ${fmt(inc.amount)}</td>
+            <td style="padding:${cellPadding};border:1px solid #cbd5e1;font-size:${cellFontSize};">${inc.category}</td>
+            <td style="padding:${cellPadding};border:1px solid #cbd5e1;text-align:right;font-weight:600;color:#16a34a;font-size:${cellFontSize};">৳ ${fmt(inc.amount)}</td>
           </tr>
         `).join('');
 
     const expensesHtml = monthlyData.expenses.length === 0 && (!monthlyData.investments || monthlyData.investments.length === 0)
-      ? `<tr><td colspan="2" style="text-align:center;padding:12px;color:#94a3b8;">কোনো ব্যয়ের বিবরণ পাওয়া যায়নি</td></tr>`
+      ? `<tr><td colspan="2" style="text-align:center;padding:${isForPdf ? '8px' : '12px'};color:#94a3b8;font-size:${cellFontSize};">কোনো ব্যয়ের বিবরণ পাওয়া যায়নি</td></tr>`
       : monthlyData.expenses.map((exp: any) => `
           <tr>
-            <td style="padding:8px 12px;border:1px solid #cbd5e1;">${exp.category}</td>
-            <td style="padding:8px 12px;border:1px solid #cbd5e1;text-align:right;font-weight:600;color:#dc2626;">৳ ${fmt(exp.amount)}</td>
+            <td style="padding:${cellPadding};border:1px solid #cbd5e1;font-size:${cellFontSize};">${exp.category}</td>
+            <td style="padding:${cellPadding};border:1px solid #cbd5e1;text-align:right;font-weight:600;color:#dc2626;font-size:${cellFontSize};">৳ ${fmt(exp.amount)}</td>
           </tr>
         `).join('') +
       (monthlyData.investments && monthlyData.investments.length > 0
-        ? `<tr><td colspan="2" style="background:#f1f5f9;font-weight:bold;padding:8px 12px;border:1px solid #cbd5e1;text-align:center;color:#334155;">বিনিয়োগ বাবদ খরচ (Investments)</td></tr>` +
+        ? `<tr><td colspan="2" style="background:#f1f5f9;font-weight:bold;padding:${cellPadding};border:1px solid #cbd5e1;text-align:center;color:#334155;font-size:${cellFontSize};">বিনিয়োগ বাবদ খরচ (Investments)</td></tr>` +
         monthlyData.investments.map((inv: any) => `
             <tr>
-              <td style="padding:8px 12px;border:1px solid #cbd5e1;">${inv.category}</td>
-              <td style="padding:8px 12px;border:1px solid #cbd5e1;text-align:right;font-weight:600;color:#dc2626;">৳ ${fmt(inv.amount)}</td>
+              <td style="padding:${cellPadding};border:1px solid #cbd5e1;font-size:${cellFontSize};">${inv.category}</td>
+              <td style="padding:${cellPadding};border:1px solid #cbd5e1;text-align:right;font-weight:600;color:#dc2626;font-size:${cellFontSize};">৳ ${fmt(inv.amount)}</td>
             </tr>
           `).join('')
         : '');
@@ -492,71 +540,72 @@ export default function Reports() {
       <title>মাসিক আয়-ব্যয় বিবরণী — ${fmtMonth(monthlyData.month)}</title>
       <style>
         *{box-sizing:border-box}
-        body{width:800px;font-family:Arial,sans-serif;font-size:13px;color:#1e293b;margin:28px auto;padding:10px}
-        h1{font-size:20px;color:#1e3a5f;margin:0}h2{font-size:14px;color:#334155;margin:4px 0 0}
+        body{width:800px;font-family:Arial,sans-serif;font-size:${isForPdf ? '11px' : '13px'};color:#1e293b;margin:${isForPdf ? '0 auto' : '28px auto'};padding:${isForPdf ? '6px 12px' : '10px'}}
+        h1{font-size:${isForPdf ? '18px' : '20px'};color:#1e3a5f;margin:0}h2{font-size:${isForPdf ? '13px' : '14px'};color:#334155;margin:3px 0 0}
         .hdr{display:flex;align-items:center;justify-content:center;gap:16px;border-bottom:2px solid #1e3a5f;padding-bottom:12px;margin-bottom:18px}
-        .table-title{background:#1e3a5f;color:#fff;padding:8px 12px;font-weight:bold;font-size:14px;border-top-left-radius:6px;border-top-right-radius:6px}
-        table{width:100%;border-collapse:collapse;font-size:12px}th{background:#f8fafc;padding:8px 12px;border:1px solid #e2e8f0;font-weight:600;text-align:left}td{padding:8px 12px;border:1px solid #cbd5e1}
-        .summary-box{background:#f8fafc;border:1px solid #cbd5e1;border-radius:6px;padding:16px;margin-top:24px}
+        .table-title{background:#1e3a5f;color:#fff;padding:${isForPdf ? '5px 8px' : '8px 12px'};font-weight:bold;font-size:${isForPdf ? '11px' : '14px'};border-top-left-radius:${isForPdf ? '4px' : '6px'};border-top-right-radius:${isForPdf ? '4px' : '6px'}}
+        table{width:100%;border-collapse:collapse;font-size:${cellFontSize}}th{background:#f8fafc;padding:${cellPadding};border:1px solid #e2e8f0;font-weight:600;text-align:left;font-size:${cellFontSize}}td{padding:${cellPadding};border:1px solid #cbd5e1;font-size:${cellFontSize}}
+        .summary-box{background:#f8fafc;border:1px solid #cbd5e1;border-radius:${isForPdf ? '4px' : '6px'};padding:${isForPdf ? '10px 12px' : '16px'};margin-top:${isForPdf ? '14px' : '24px'}}
         @media print{body{width:800px;margin:12px}@page{size:A4 portrait;margin:12mm}}
       </style></head><body>
-      <table style="width:100%; border-collapse:collapse; border-bottom:2px solid #1e3a5f; margin-bottom:18px; padding-bottom:12px;">
+      <table style="width:100%; border-collapse:collapse; ${isForPdf ? '' : 'border-bottom:2px solid #1e3a5f; margin-bottom:18px; padding-bottom:12px;'}">
         <tr>
           ${companyProfile?.logo ? `
-          <td style="width:70px; vertical-align:middle; border:none; padding:0;">
-            <img src="${process.env.API_HOST}${companyProfile.logo}" style="height:60px; width:60px; object-fit:contain; display:block;" alt="Logo"/>
+          <td style="width:${isForPdf ? '60px' : '70px'}; vertical-align:middle; border:none; padding:0;">
+            <img src="${process.env.API_HOST}${companyProfile.logo}" style="height:${isForPdf ? '50px' : '60px'}; width:${isForPdf ? '50px' : '60px'}; object-fit:contain; display:block;" alt="Logo"/>
           </td>` : ''}
           <td style="vertical-align:middle; text-align:center; border:none; padding:0;">
-            <div style="${companyProfile?.logo ? 'margin-right:70px;' : ''}">
-              <h1 style="font-size:20px; color:#1e3a5f; margin:0;">${companyProfile?.name || 'সমবায় সমিতি'}</h1>
-              ${companyProfile?.address ? `<div style="font-size:11px; color:#64748b; margin-top:2px;">${companyProfile.address}</div>` : ''}
-              <h2 style="font-size:14px; color:#334155; margin:4px 0 0;">মাসিক আয়-ব্যয় বিবরণী</h2>
-              <div style="font-size:12px; font-weight:bold; color:#1e3a5f; margin-top:4px;">
+            <div style="${companyProfile?.logo ? (isForPdf ? 'margin-right:60px;' : 'margin-right:70px;') : ''}">
+              <h1 style="font-size:${isForPdf ? '18px' : '20px'}; color:#1e3a5f; margin:0;">${companyProfile?.name || 'সমবায় সমিতি'}</h1>
+              ${companyProfile?.address ? `<div style="font-size:${isForPdf ? '10px' : '11px'}; color:#64748b; margin-top:2px;">${companyProfile.address}</div>` : ''}
+              <h2 style="font-size:${isForPdf ? '13px' : '14px'}; color:#334155; margin:3px 0 0;">মাসিক আয়-ব্যয় বিবরণী</h2>
+              <div style="font-size:${isForPdf ? '11px' : '12px'}; font-weight:bold; color:#1e3a5f; margin-top:3px;">
                 রিপোর্ট মাস: ${fmtMonth(monthlyData.month)} (${fmtDate(monthlyData.startDate)} থেকে ${fmtDate(monthlyData.endDate)})
               </div>
-              <div style="font-size:11px; color:#64748b; margin-top:3px; text-align:right">মুদ্রণের তারিখ: ${new Date().toLocaleDateString('bn-BD', { day: '2-digit', month: 'long', year: 'numeric' })}</div>
+              <div style="font-size:${isForPdf ? '10px' : '11px'}; color:#64748b; margin-top:3px; ${isForPdf ? 'margin-bottom:8px; line-height:1.2;' : ''} text-align:right">মুদ্রণের তারিখ: ${new Date().toLocaleDateString('bn-BD', { day: '2-digit', month: 'long', year: 'numeric' })}</div>
             </div>
           </td>
         </tr>
       </table>
+      ${isForPdf ? '<div style="border-bottom:2px solid #1e3a5f; margin:0 0 14px 0; clear:both; width:100%;"></div>' : ''}
 
       <!-- Table-based Grid layout for side-by-side columns -->
-      <table style="width:100%; border-collapse:collapse; border:none; margin-bottom:20px; table-layout:fixed;">
+      <table style="width:100%; border-collapse:collapse; border:none; margin-bottom:${isForPdf ? '12px' : '20px'}; table-layout:fixed;">
         <tr>
           <!-- Income Column -->
-          <td style="width:50%; vertical-align:top; border:none; padding:0 10px 0 0;">
+          <td style="width:50%; vertical-align:top; border:none; padding:0 ${isForPdf ? '6px' : '10px'} 0 0;">
             <div class="table-title">আয় সমূহ (Monthly Incomes)</div>
             <table style="width:100%; border-collapse:collapse;">
               <thead>
                 <tr>
-                  <th style="padding:8px 12px;border:1px solid #cbd5e1;background:#f8fafc;font-weight:600;text-align:left;">আয়ের খাত (Category)</th>
-                  <th style="padding:8px 12px;border:1px solid #cbd5e1;background:#f8fafc;font-weight:600;text-align:right;">টাকার পরিমাণ (Amount)</th>
+                  <th style="padding:${cellPadding};border:1px solid #cbd5e1;background:#f8fafc;font-weight:600;text-align:left;font-size:${cellFontSize};">আয়ের খাত (Category)</th>
+                  <th style="padding:${cellPadding};border:1px solid #cbd5e1;background:#f8fafc;font-weight:600;text-align:right;font-size:${cellFontSize};">টাকার পরিমাণ (Amount)</th>
                 </tr>
               </thead>
               <tbody>${incomesHtml}</tbody>
               <tfoot>
                 <tr style="background:#f8fafc;font-weight:bold;">
-                  <td style="padding:8px 12px;border:1px solid #cbd5e1;">মোট রানিং আয় (Total Month Income)</td>
-                  <td style="padding:8px 12px;border:1px solid #cbd5e1;text-align:right;color:#16a34a;">৳ ${fmt(summary.currentMonthIncome)}</td>
+                  <td style="padding:${cellPadding};border:1px solid #cbd5e1;font-size:${cellFontSize};">মোট রানিং আয় (Total Month Income)</td>
+                  <td style="padding:${cellPadding};border:1px solid #cbd5e1;text-align:right;color:#16a34a;font-size:${cellFontSize};">৳ ${fmt(summary.currentMonthIncome)}</td>
                 </tr>
               </tfoot>
             </table>
           </td>
           <!-- Expense Column -->
-          <td style="width:50%; vertical-align:top; border:none; padding:0 0 0 10px;">
+          <td style="width:50%; vertical-align:top; border:none; padding:0 0 0 ${isForPdf ? '6px' : '10px'};">
             <div class="table-title">ব্যয় ও বিনিয়োগ (Expenses & Investments)</div>
             <table style="width:100%; border-collapse:collapse;">
               <thead>
                 <tr>
-                  <th style="padding:8px 12px;border:1px solid #cbd5e1;background:#f8fafc;font-weight:600;text-align:left;">খাত (Category)</th>
-                  <th style="padding:8px 12px;border:1px solid #cbd5e1;background:#f8fafc;font-weight:600;text-align:right;">টাকার পরিমাণ (Amount)</th>
+                  <th style="padding:${cellPadding};border:1px solid #cbd5e1;background:#f8fafc;font-weight:600;text-align:left;font-size:${cellFontSize};">খাত (Category)</th>
+                  <th style="padding:${cellPadding};border:1px solid #cbd5e1;background:#f8fafc;font-weight:600;text-align:right;font-size:${cellFontSize};">টাকার পরিমাণ (Amount)</th>
                 </tr>
               </thead>
               <tbody>${expensesHtml}</tbody>
               <tfoot>
                 <tr style="background:#f8fafc;font-weight:bold;">
-                  <td style="padding:8px 12px;border:1px solid #cbd5e1;">মোট রানিং ব্যয় ও বিনিয়োগ</td>
-                  <td style="padding:8px 12px;border:1px solid #cbd5e1;text-align:right;color:#dc2626;">৳ ${fmt(summary.currentMonthExpense)}</td>
+                  <td style="padding:${cellPadding};border:1px solid #cbd5e1;font-size:${cellFontSize};">মোট রানিং ব্যয় ও বিনিয়োগ</td>
+                  <td style="padding:${cellPadding};border:1px solid #cbd5e1;text-align:right;color:#dc2626;font-size:${cellFontSize};">৳ ${fmt(summary.currentMonthExpense)}</td>
                 </tr>
               </tfoot>
             </table>
@@ -565,67 +614,67 @@ export default function Reports() {
       </table>
 
       <!-- ৩টি সারসংক্ষেপ মেট্রিক কার্ড (Metric Cards) -->
-      <table style="width:100%; border-collapse:separate; border-spacing:10px 0; margin-bottom:20px; table-layout:fixed;">
+      <table style="width:100%; border-collapse:separate; border-spacing:${isForPdf ? '6px' : '10px'} 0; margin-bottom:${isForPdf ? '12px' : '20px'}; table-layout:fixed;">
         <tr>
           <!-- Card 1: বিগত মাসগুলোর হিসাব -->
-          <td style="width:33.33%; vertical-align:top; border:1px solid #bfdbfe; background:#eff6ff; border-radius:6px; padding:10px 12px;">
-            <div style="font-weight:bold; font-size:12px; color:#1e3a5f; border-bottom:1px solid #bfdbfe; padding-bottom:4px; margin-bottom:6px;">
-              <span style="color:#2563eb; font-size:12px; margin-right:3px;">●</span> বিগত মাসগুলোর হিসাব
+          <td style="width:33.33%; vertical-align:top; border:1px solid #bfdbfe; background:#eff6ff; border-radius:${isForPdf ? '4px' : '6px'}; padding:${isForPdf ? '6px 8px' : '10px 12px'};">
+            <div style="font-weight:bold; font-size:${isForPdf ? '10px' : '12px'}; color:#1e3a5f; border-bottom:1px solid #bfdbfe; padding-bottom:${isForPdf ? '2px' : '4px'}; margin-bottom:${isForPdf ? '4px' : '6px'};">
+              <span style="color:#2563eb; font-size:${isForPdf ? '10px' : '12px'}; margin-right:3px;">●</span> বিগত মাসগুলোর হিসাব
             </div>
-            <table style="width:100%; border-collapse:collapse; font-size:11px;">
+            <table style="width:100%; border-collapse:collapse; font-size:${isForPdf ? '9.5px' : '11px'};">
               <tr>
-                <td style="padding:3px 0; border:none; color:#475569;">বিগত মোট আয়:</td>
-                <td style="padding:3px 0; border:none; text-align:right; color:#16a34a; font-weight:bold;">৳ ${fmt(summary.previousTotalIncome)}</td>
+                <td style="padding:${isForPdf ? '2px 0' : '3px 0'}; border:none; color:#475569;">বিগত মোট আয়:</td>
+                <td style="padding:${isForPdf ? '2px 0' : '3px 0'}; border:none; text-align:right; color:#16a34a; font-weight:bold;">৳ ${fmt(summary.previousTotalIncome)}</td>
               </tr>
               <tr>
-                <td style="padding:3px 0; border:none; color:#475569;">বিগত মোট ব্যয়:</td>
-                <td style="padding:3px 0; border:none; text-align:right; color:#dc2626; font-weight:bold;">৳ ${fmt(summary.previousTotalExpense)}</td>
+                <td style="padding:${isForPdf ? '2px 0' : '3px 0'}; border:none; color:#475569;">বিগত মোট ব্যয়:</td>
+                <td style="padding:${isForPdf ? '2px 0' : '3px 0'}; border:none; text-align:right; color:#dc2626; font-weight:bold;">৳ ${fmt(summary.previousTotalExpense)}</td>
               </tr>
               <tr style="border-top:1px solid #bfdbfe;">
-                <td style="padding:4px 0 0 0; border:none; font-weight:bold; color:#1e3a5f;">বিগত নীট স্থিতি:</td>
-                <td style="padding:4px 0 0 0; border:none; text-align:right; color:${summary.previousNetBalance >= 0 ? '#2563eb' : '#dc2626'}; font-weight:bold;">৳ ${fmt(summary.previousNetBalance)}</td>
+                <td style="padding:${isForPdf ? '3px 0 0 0' : '4px 0 0 0'}; border:none; font-weight:bold; color:#1e3a5f;">বিগত নীট স্থিতি:</td>
+                <td style="padding:${isForPdf ? '3px 0 0 0' : '4px 0 0 0'}; border:none; text-align:right; color:${summary.previousNetBalance >= 0 ? '#2563eb' : '#dc2626'}; font-weight:bold;">৳ ${fmt(summary.previousNetBalance)}</td>
               </tr>
             </table>
           </td>
 
           <!-- Card 2: রিপোর্ট মাসের হিসাব -->
-          <td style="width:33.33%; vertical-align:top; border:1px solid #bbf7d0; background:#f0fdf4; border-radius:6px; padding:10px 12px;">
-            <div style="font-weight:bold; font-size:12px; color:#166534; border-bottom:1px solid #bbf7d0; padding-bottom:4px; margin-bottom:6px;">
-              <span style="color:#16a34a; font-size:12px; margin-right:3px;">●</span> রিপোর্ট মাসের হিসাব (${fmtMonth(monthlyData.month)})
+          <td style="width:33.33%; vertical-align:top; border:1px solid #bbf7d0; background:#f0fdf4; border-radius:${isForPdf ? '4px' : '6px'}; padding:${isForPdf ? '6px 8px' : '10px 12px'};">
+            <div style="font-weight:bold; font-size:${isForPdf ? '10px' : '12px'}; color:#166534; border-bottom:1px solid #bbf7d0; padding-bottom:${isForPdf ? '2px' : '4px'}; margin-bottom:${isForPdf ? '4px' : '6px'};">
+              <span style="color:#16a34a; font-size:${isForPdf ? '10px' : '12px'}; margin-right:3px;">●</span> রিপোর্ট মাসের হিসাব (${fmtMonth(monthlyData.month)})
             </div>
-            <table style="width:100%; border-collapse:collapse; font-size:11px;">
+            <table style="width:100%; border-collapse:collapse; font-size:${isForPdf ? '9.5px' : '11px'};">
               <tr>
-                <td style="padding:3px 0; border:none; color:#475569;">রানিং আয়:</td>
-                <td style="padding:3px 0; border:none; text-align:right; color:#16a34a; font-weight:bold;">৳ ${fmt(summary.currentMonthIncome)}</td>
+                <td style="padding:${isForPdf ? '2px 0' : '3px 0'}; border:none; color:#475569;">রানিং আয়:</td>
+                <td style="padding:${isForPdf ? '2px 0' : '3px 0'}; border:none; text-align:right; color:#16a34a; font-weight:bold;">৳ ${fmt(summary.currentMonthIncome)}</td>
               </tr>
               <tr>
-                <td style="padding:3px 0; border:none; color:#475569;">রানিং ব্যয়:</td>
-                <td style="padding:3px 0; border:none; text-align:right; color:#dc2626; font-weight:bold;">৳ ${fmt(summary.currentMonthExpense)}</td>
+                <td style="padding:${isForPdf ? '2px 0' : '3px 0'}; border:none; color:#475569;">রানিং ব্যয়:</td>
+                <td style="padding:${isForPdf ? '2px 0' : '3px 0'}; border:none; text-align:right; color:#dc2626; font-weight:bold;">৳ ${fmt(summary.currentMonthExpense)}</td>
               </tr>
               <tr style="border-top:1px solid #bbf7d0;">
-                <td style="padding:4px 0 0 0; border:none; font-weight:bold; color:#166534;">রানিং নীট ফলাফল:</td>
-                <td style="padding:4px 0 0 0; border:none; text-align:right; color:${summary.currentMonthNetBalance >= 0 ? '#16a34a' : '#dc2626'}; font-weight:bold;">৳ ${fmt(summary.currentMonthNetBalance)}</td>
+                <td style="padding:${isForPdf ? '3px 0 0 0' : '4px 0 0 0'}; border:none; font-weight:bold; color:#166534;">রানিং নীট ফলাফল:</td>
+                <td style="padding:${isForPdf ? '3px 0 0 0' : '4px 0 0 0'}; border:none; text-align:right; color:${summary.currentMonthNetBalance >= 0 ? '#16a34a' : '#dc2626'}; font-weight:bold;">৳ ${fmt(summary.currentMonthNetBalance)}</td>
               </tr>
             </table>
           </td>
 
           <!-- Card 3: সর্বমোট ফলাফল -->
-          <td style="width:33.33%; vertical-align:top; border:1px solid #cbd5e1; background:#f8fafc; border-radius:6px; padding:10px 12px; color:#1e293b;">
-            <div style="font-weight:bold; font-size:12px; color:#1e293b; border-bottom:1px solid #cbd5e1; padding-bottom:4px; margin-bottom:6px;">
-              <span style="color:#475569; font-size:12px; margin-right:3px;">●</span> সর্বমোট ফলাফল (Cumulative)
+          <td style="width:33.33%; vertical-align:top; border:1px solid #cbd5e1; background:#f8fafc; border-radius:${isForPdf ? '4px' : '6px'}; padding:${isForPdf ? '6px 8px' : '10px 12px'}; color:#1e293b;">
+            <div style="font-weight:bold; font-size:${isForPdf ? '10px' : '12px'}; color:#1e293b; border-bottom:1px solid #cbd5e1; padding-bottom:${isForPdf ? '2px' : '4px'}; margin-bottom:${isForPdf ? '4px' : '6px'};">
+              <span style="color:#475569; font-size:${isForPdf ? '10px' : '12px'}; margin-right:3px;">●</span> সর্বমোট ফলাফল (Cumulative)
             </div>
-            <table style="width:100%; border-collapse:collapse; font-size:11px;">
+            <table style="width:100%; border-collapse:collapse; font-size:${isForPdf ? '9.5px' : '11px'};">
               <tr>
-                <td style="padding:3px 0; border:none; color:#475569;">সর্বমোট আয়:</td>
-                <td style="padding:3px 0; border:none; text-align:right; color:#16a34a; font-weight:bold;">৳ ${fmt(summary.totalIncome)}</td>
+                <td style="padding:${isForPdf ? '2px 0' : '3px 0'}; border:none; color:#475569;">সর্বমোট আয়:</td>
+                <td style="padding:${isForPdf ? '2px 0' : '3px 0'}; border:none; text-align:right; color:#16a34a; font-weight:bold;">৳ ${fmt(summary.totalIncome)}</td>
               </tr>
               <tr>
-                <td style="padding:3px 0; border:none; color:#475569;">সর্বমোট ব্যয়:</td>
-                <td style="padding:3px 0; border:none; text-align:right; color:#dc2626; font-weight:bold;">৳ ${fmt(summary.totalExpense)}</td>
+                <td style="padding:${isForPdf ? '2px 0' : '3px 0'}; border:none; color:#475569;">সর্বমোট ব্যয়:</td>
+                <td style="padding:${isForPdf ? '2px 0' : '3px 0'}; border:none; text-align:right; color:#dc2626; font-weight:bold;">৳ ${fmt(summary.totalExpense)}</td>
               </tr>
               <tr style="border-top:1px solid #cbd5e1;">
-                <td style="padding:4px 0 0 0; border:none; font-weight:bold; color:#1e293b;">ফলাফল (স্থিতি):</td>
-                <td style="padding:4px 0 0 0; border:none; text-align:right; color:${summary.finalBalance >= 0 ? '#16a34a' : '#dc2626'}; font-weight:bold; font-size:11px;">৳ ${fmt(summary.finalBalance)}</td>
+                <td style="padding:${isForPdf ? '3px 0 0 0' : '4px 0 0 0'}; border:none; font-weight:bold; color:#1e293b;">ফলাফল (স্থিতি):</td>
+                <td style="padding:${isForPdf ? '3px 0 0 0' : '4px 0 0 0'}; border:none; text-align:right; color:${summary.finalBalance >= 0 ? '#16a34a' : '#dc2626'}; font-weight:bold; font-size:${isForPdf ? '9.5px' : '11px'};">৳ ${fmt(summary.finalBalance)}</td>
               </tr>
             </table>
           </td>
@@ -634,56 +683,56 @@ export default function Reports() {
 
       <!-- Summary Box with 5 Requested Metrics -->
       <div class="summary-box">
-        <div style="font-weight:bold;font-size:14px;color:#1e3a5f;margin-bottom:12px;border-bottom:1px solid #cbd5e1;padding-bottom:6px;">
+        <div style="font-weight:bold;font-size:${isForPdf ? '11px' : '14px'};color:#1e3a5f;margin-bottom:${isForPdf ? '8px' : '12px'};border-bottom:1px solid #cbd5e1;padding-bottom:${isForPdf ? '4px' : '6px'};">
           আয়-ব্যয় সারসংক্ষেপ ও ফলাফল (Monthly Financial Summary & Final Result)
         </div>
-        <table style="width:100%; border-collapse:collapse; font-size:12px;">
+        <table style="width:100%; border-collapse:collapse; font-size:${isForPdf ? '9.5px' : '12px'};">
           <tr style="background:#eff6ff;">
-            <td style="padding:7px 10px; border:1px solid #cbd5e1; font-weight:600; color:#1e3a5f;">১. বিগত মাসগুলোর সর্বমোট আয় (Previous Months' Total Income):</td>
-            <td style="padding:7px 10px; border:1px solid #cbd5e1; text-align:right; color:#16a34a; font-weight:bold;">৳ ${fmt(summary.previousTotalIncome)}</td>
+            <td style="padding:${isForPdf ? '4px 8px' : '7px 10px'}; border:1px solid #cbd5e1; font-weight:600; color:#1e3a5f;">১. বিগত মাসগুলোর সর্বমোট আয় (Previous Months' Total Income):</td>
+            <td style="padding:${isForPdf ? '4px 8px' : '7px 10px'}; border:1px solid #cbd5e1; text-align:right; color:#16a34a; font-weight:bold;">৳ ${fmt(summary.previousTotalIncome)}</td>
           </tr>
           <tr style="background:#fff;">
-            <td style="padding:7px 10px; border:1px solid #cbd5e1; font-weight:600; color:#1e3a5f;">২. বিগত মাসগুলোর সর্বমোট ব্যয় ও বিনিয়োগ (Previous Months' Total Expense & Investment):</td>
-            <td style="padding:7px 10px; border:1px solid #cbd5e1; text-align:right; color:#dc2626; font-weight:bold;">৳ ${fmt(summary.previousTotalExpense)}</td>
+            <td style="padding:${isForPdf ? '4px 8px' : '7px 10px'}; border:1px solid #cbd5e1; font-weight:600; color:#1e3a5f;">২. বিগত মাসগুলোর সর্বমোট ব্যয় ও বিনিয়োগ (Previous Months' Total Expense & Investment):</td>
+            <td style="padding:${isForPdf ? '4px 8px' : '7px 10px'}; border:1px solid #cbd5e1; text-align:right; color:#dc2626; font-weight:bold;">৳ ${fmt(summary.previousTotalExpense)}</td>
           </tr>
           <tr style="background:#f8fafc;">
-            <td style="padding:6px 10px; border:1px solid #cbd5e1; color:#64748b; padding-left:24px;">└ বিগত মাসগুলোর নীট স্থিতি (Previous Net Balance):</td>
-            <td style="padding:6px 10px; border:1px solid #cbd5e1; text-align:right; color:${summary.previousNetBalance >= 0 ? '#16a34a' : '#dc2626'}; font-weight:600;">৳ ${fmt(summary.previousNetBalance)}</td>
+            <td style="padding:${isForPdf ? '3px 8px' : '6px 10px'}; border:1px solid #cbd5e1; color:#64748b; padding-left:${isForPdf ? '16px' : '24px'};">└ বিগত মাসগুলোর নীট স্থিতি (Previous Net Balance):</td>
+            <td style="padding:${isForPdf ? '3px 8px' : '6px 10px'}; border:1px solid #cbd5e1; text-align:right; color:${summary.previousNetBalance >= 0 ? '#16a34a' : '#dc2626'}; font-weight:600;">৳ ${fmt(summary.previousNetBalance)}</td>
           </tr>
           <tr style="background:#f0fdf4;">
-            <td style="padding:7px 10px; border:1px solid #cbd5e1; font-weight:600; color:#1e3a5f;">৩. আয় (Report Month's Running Income):</td>
-            <td style="padding:7px 10px; border:1px solid #cbd5e1; text-align:right; color:#16a34a; font-weight:bold;">৳ ${fmt(summary.currentMonthIncome)}</td>
+            <td style="padding:${isForPdf ? '4px 8px' : '7px 10px'}; border:1px solid #cbd5e1; font-weight:600; color:#1e3a5f;">৩. আয় (Report Month's Running Income):</td>
+            <td style="padding:${isForPdf ? '4px 8px' : '7px 10px'}; border:1px solid #cbd5e1; text-align:right; color:#16a34a; font-weight:bold;">৳ ${fmt(summary.currentMonthIncome)}</td>
           </tr>
           <tr style="background:#fef2f2;">
-            <td style="padding:7px 10px; border:1px solid #cbd5e1; font-weight:600; color:#1e3a5f;">৪. ব্যয় (Report Month's Running Expense & Investment):</td>
-            <td style="padding:7px 10px; border:1px solid #cbd5e1; text-align:right; color:#dc2626; font-weight:bold;">৳ ${fmt(summary.currentMonthExpense)}</td>
+            <td style="padding:${isForPdf ? '4px 8px' : '7px 10px'}; border:1px solid #cbd5e1; font-weight:600; color:#1e3a5f;">৪. ব্যয় (Report Month's Running Expense & Investment):</td>
+            <td style="padding:${isForPdf ? '4px 8px' : '7px 10px'}; border:1px solid #cbd5e1; text-align:right; color:#dc2626; font-weight:bold;">৳ ${fmt(summary.currentMonthExpense)}</td>
           </tr>
           <tr style="background:#f8fafc;">
-            <td style="padding:6px 10px; border:1px solid #cbd5e1; color:#64748b; padding-left:24px;">└ নীট ফলাফল (This Month's Net Balance):</td>
-            <td style="padding:6px 10px; border:1px solid #cbd5e1; text-align:right; color:${summary.currentMonthNetBalance >= 0 ? '#16a34a' : '#dc2626'}; font-weight:600;">৳ ${fmt(summary.currentMonthNetBalance)}</td>
+            <td style="padding:${isForPdf ? '3px 8px' : '6px 10px'}; border:1px solid #cbd5e1; color:#64748b; padding-left:${isForPdf ? '16px' : '24px'};">└ নীট ফলাফল (This Month's Net Balance):</td>
+            <td style="padding:${isForPdf ? '3px 8px' : '6px 10px'}; border:1px solid #cbd5e1; text-align:right; color:${summary.currentMonthNetBalance >= 0 ? '#16a34a' : '#dc2626'}; font-weight:600;">৳ ${fmt(summary.currentMonthNetBalance)}</td>
           </tr>
           <tr style="background:#f1f5f9;">
-            <td style="padding:6px 10px; border:1px solid #cbd5e1; color:#334155; font-weight:600;">└ সর্বমোট আয় (বিগত + রানিং):</td>
-            <td style="padding:6px 10px; border:1px solid #cbd5e1; text-align:right; color:#16a34a; font-weight:bold;">৳ ${fmt(summary.totalIncome)}</td>
+            <td style="padding:${isForPdf ? '3px 8px' : '6px 10px'}; border:1px solid #cbd5e1; color:#334155; font-weight:600;">└ সর্বমোট আয় (বিগত + রানিং):</td>
+            <td style="padding:${isForPdf ? '3px 8px' : '6px 10px'}; border:1px solid #cbd5e1; text-align:right; color:#16a34a; font-weight:bold;">৳ ${fmt(summary.totalIncome)}</td>
           </tr>
           <tr style="background:#f1f5f9;">
-            <td style="padding:6px 10px; border:1px solid #cbd5e1; color:#334155; font-weight:600;">└ সর্বমোট ব্যয় (বিগত + রানিং):</td>
-            <td style="padding:6px 10px; border:1px solid #cbd5e1; text-align:right; color:#dc2626; font-weight:bold;">৳ ${fmt(summary.totalExpense)}</td>
+            <td style="padding:${isForPdf ? '3px 8px' : '6px 10px'}; border:1px solid #cbd5e1; color:#334155; font-weight:600;">└ সর্বমোট ব্যয় (বিগত + রানিং):</td>
+            <td style="padding:${isForPdf ? '3px 8px' : '6px 10px'}; border:1px solid #cbd5e1; text-align:right; color:#dc2626; font-weight:bold;">৳ ${fmt(summary.totalExpense)}</td>
           </tr>
           <tr style="background:#1e3a5f; color:#fff;">
-            <td style="padding:10px; border:1px solid #1e3a5f; font-size:14px; font-weight:bold; color:#fff;">৫. ${finalResultLabel}:</td>
-            <td style="padding:10px; border:1px solid #1e3a5f; text-align:right; font-size:15px; font-weight:bold; color:${summary.finalBalance >= 0 ? '#4ade80' : '#f87171'};">৳ ${fmt(summary.finalBalance)}</td>
+            <td style="padding:${isForPdf ? '6px 8px' : '10px'}; border:1px solid #1e3a5f; font-size:${isForPdf ? '11px' : '14px'}; font-weight:bold; color:#fff;">৫. ${finalResultLabel}:</td>
+            <td style="padding:${isForPdf ? '6px 8px' : '10px'}; border:1px solid #1e3a5f; text-align:right; font-size:${isForPdf ? '11.5px' : '15px'}; font-weight:bold; color:${summary.finalBalance >= 0 ? '#4ade80' : '#f87171'};">৳ ${fmt(summary.finalBalance)}</td>
           </tr>
         </table>
       </div>
 
       <!-- Signatures with Table layout -->
-      <table style="width:100%; border-collapse:collapse; border:none; margin-top:70px; text-align:center; font-size:12px; color:#64748b;">
+      <table style="width:100%; border-collapse:collapse; border:none; margin-top:${isForPdf ? '40px' : '70px'}; text-align:center; font-size:${isForPdf ? '10px' : '12px'}; color:#64748b;">
         <tr>
-          <td style="width:25%; border:none; padding:0;"><div style="border-top:1px solid #cbd5e1;width:150px;margin:0 auto;padding-top:6px;">প্রস্তুতকারীর স্বাক্ষর</div></td>
-          <td style="width:25%; border:none; padding:0;"><div style="border-top:1px solid #cbd5e1;width:150px;margin:0 auto;padding-top:6px;">কোষাধক্ষের স্বাক্ষর</div></td>
-          <td style="width:25%; border:none; padding:0;"><div style="border-top:1px solid #cbd5e1;width:150px;margin:0 auto;padding-top:6px;">সহ-সভাপতির স্বাক্ষর</div></td>
-          <td style="width:25%; border:none; padding:0;"><div style="border-top:1px solid #cbd5e1;width:150px;margin:0 auto;padding-top:6px;">সভাপতির স্বাক্ষর</div></td>
+          <td style="width:25%; border:none; padding:0;"><div style="border-top:1px solid #cbd5e1;width:${isForPdf ? '110px' : '150px'};margin:0 auto;padding-top:4px;">প্রস্তুতকারীর স্বাক্ষর</div></td>
+          <td style="width:25%; border:none; padding:0;"><div style="border-top:1px solid #cbd5e1;width:${isForPdf ? '110px' : '150px'};margin:0 auto;padding-top:4px;">কোষাধক্ষের স্বাক্ষর</div></td>
+          <td style="width:25%; border:none; padding:0;"><div style="border-top:1px solid #cbd5e1;width:${isForPdf ? '110px' : '150px'};margin:0 auto;padding-top:4px;">সহ-সভাপতির স্বাক্ষর</div></td>
+          <td style="width:25%; border:none; padding:0;"><div style="border-top:1px solid #cbd5e1;width:${isForPdf ? '110px' : '150px'};margin:0 auto;padding-top:4px;">সভাপতির স্বাক্ষর</div></td>
         </tr>
       </table>
     </body></html>`;
@@ -1097,6 +1146,311 @@ export default function Reports() {
     </body></html>`;
   };
 
+  // ——— প্রজেক্ট বিবরণী HTML জেনারেটর ———
+  const getProjectReportHTML = (isForPdf: boolean = false) => {
+    if (!projectReportData) return "";
+
+    const cellPadding = isForPdf ? "4px 8px" : "8px 12px";
+    const cellFontSize = isForPdf ? "10px" : "12px";
+
+    const reportTimeText = (fromDate || toDate)
+      ? `সময়কাল: ${fromDate ? fmtDate(fromDate) : "শুরু"} থেকে ${toDate ? fmtDate(toDate) : "আজ পর্যন্ত"}`
+      : "সর্বকালের শুরু থেকে আজ পর্যন্ত";
+
+    // Mode A: সকল প্রজেক্ট (ALL Projects)
+    if (projectReportData.mode === "ALL") {
+      const summary = projectReportData.data.summary;
+      const projects = projectReportData.data.projects || [];
+      const totalBudget = projects.reduce((acc: number, p: any) => acc + (p.budget || 0), 0);
+      const totalExpAndInv = summary.overallExpense + summary.overallInvestment;
+
+      const projectRows = projects.map((p: any, i: number) => `
+        <tr style="background:${i % 2 === 0 ? '#fff' : '#f8fafc'}">
+          <td style="padding:${cellPadding};border:1px solid #cbd5e1;text-align:center;font-size:${cellFontSize};">${i + 1}</td>
+          <td style="padding:${cellPadding};border:1px solid #cbd5e1;font-size:${cellFontSize};">
+            <strong>${p.name}</strong>
+            ${p.code ? `<div style="font-size:9px;color:#64748b;">${p.code}</div>` : ''}
+          </td>
+          <td style="padding:${cellPadding};border:1px solid #cbd5e1;font-size:${cellFontSize};">${p.location || '-'}</td>
+          <td style="padding:${cellPadding};border:1px solid #cbd5e1;text-align:center;font-size:${cellFontSize};">
+            ${p.status === 'ONGOING' ? 'চলমান' : p.status === 'COMPLETED' ? 'সম্পন্ন' : p.status === 'PLANNED' ? 'পরিকল্পিত' : 'স্থগিত'}
+          </td>
+          <td style="padding:${cellPadding};border:1px solid #cbd5e1;text-align:right;font-size:${cellFontSize};">৳ ${fmt(p.budget || 0)}</td>
+          <td style="padding:${cellPadding};border:1px solid #cbd5e1;text-align:right;color:#16a34a;font-weight:600;font-size:${cellFontSize};">৳ ${fmt(p.totalIncome)}</td>
+          <td style="padding:${cellPadding};border:1px solid #cbd5e1;text-align:right;color:#dc2626;font-size:${cellFontSize};">৳ ${fmt(p.totalExpense)}</td>
+          <td style="padding:${cellPadding};border:1px solid #cbd5e1;text-align:right;color:#2563eb;font-size:${cellFontSize};">৳ ${fmt(p.totalInvestment)}</td>
+          <td style="padding:${cellPadding};border:1px solid #cbd5e1;text-align:right;font-weight:600;font-size:${cellFontSize};">৳ ${fmt(p.totalExpense + p.totalInvestment)}</td>
+          <td style="padding:${cellPadding};border:1px solid #cbd5e1;text-align:right;font-weight:bold;color:${p.netBalance >= 0 ? '#16a34a' : '#dc2626'};font-size:${cellFontSize};">৳ ${fmt(p.netBalance)}</td>
+          <td style="padding:${cellPadding};border:1px solid #cbd5e1;text-align:center;font-size:${cellFontSize};">${p.budgetUtilization}%</td>
+        </tr>
+      `).join('');
+
+      return `<!DOCTYPE html><html lang="bn"><head><meta charset="UTF-8"/>
+        <title>সকল প্রজেক্টের আর্থিক বিবরণী</title>
+        <style>
+          *{box-sizing:border-box}
+          body{width:1000px;font-family:Arial,sans-serif;font-size:${isForPdf ? '10px' : '11.5px'};color:#1e293b;margin:${isForPdf ? '0 auto' : '20px auto'};padding:${isForPdf ? '6px 12px' : '10px'}}
+          h1{font-size:${isForPdf ? '18px' : '20px'};color:#1e3a5f;margin:0}
+          h2{font-size:${isForPdf ? '13px' : '14px'};color:#334155;margin:3px 0 0}
+          table{width:100%;border-collapse:collapse;font-size:${cellFontSize}}
+          th{background:#f1f5f9;padding:${cellPadding};border:1px solid #cbd5e1;font-weight:600;font-size:${cellFontSize};text-align:left;}
+          td{padding:${cellPadding};border:1px solid #cbd5e1;font-size:${cellFontSize};}
+          @media print{body{width:100%;margin:10px}@page{size:A4 landscape;margin:10mm}}
+        </style></head><body>
+        <table style="width:100%; border-collapse:collapse; ${isForPdf ? '' : 'border-bottom:2px solid #1e3a5f; margin-bottom:14px; padding-bottom:10px;'}">
+          <tr>
+            ${companyProfile?.logo ? `
+            <td style="width:${isForPdf ? '55px' : '65px'}; vertical-align:middle; border:none; padding:0;">
+              <img src="${process.env.API_HOST}${companyProfile.logo}" style="height:${isForPdf ? '45px' : '55px'}; width:${isForPdf ? '45px' : '55px'}; object-fit:contain; display:block;" alt="Logo"/>
+            </td>` : ''}
+            <td style="vertical-align:middle; text-align:center; border:none; padding:0;">
+              <div style="${companyProfile?.logo ? (isForPdf ? 'margin-right:55px;' : 'margin-right:65px;') : ''}">
+                <h1 style="font-size:${isForPdf ? '18px' : '20px'}; color:#1e3a5f; margin:0;">${companyProfile?.name || 'সমবায় সমিতি'}</h1>
+                ${companyProfile?.address ? `<div style="font-size:${isForPdf ? '10px' : '11px'}; color:#64748b; margin-top:2px;">${companyProfile.address}</div>` : ''}
+                <h2 style="font-size:${isForPdf ? '13px' : '14px'}; color:#334155; margin:3px 0 0;">সকল প্রজেক্টের সামগ্রিক আর্থিক বিবরণী (Project Summary Report)</h2>
+                <div style="font-size:${isForPdf ? '10.5px' : '11px'}; color:#1e3a5f; font-weight:600; margin-top:3px;">${reportTimeText}</div>
+                <div style="font-size:${isForPdf ? '9.5px' : '10.5px'}; color:#64748b; margin-top:2px; ${isForPdf ? 'margin-bottom:8px; line-height:1.2;' : ''} text-align:right;">মুদ্রণের তারিখ: ${new Date().toLocaleDateString('bn-BD', { day: '2-digit', month: 'long', year: 'numeric' })}</div>
+              </div>
+            </td>
+          </tr>
+        </table>
+        ${isForPdf ? '<div style="border-bottom:2px solid #1e3a5f; margin:0 0 12px 0; clear:both; width:100%;"></div>' : ''}
+
+        <!-- 4 Top Cards Table -->
+        <table style="width:100%; border-collapse:separate; border-spacing:${isForPdf ? '6px' : '8px'} 0; margin-bottom:${isForPdf ? '12px' : '16px'}; table-layout:fixed;">
+          <tr>
+            <td style="width:25%; border:1px solid #cbd5e1; background:#f8fafc; border-radius:4px; padding:6px 8px; text-align:center;">
+              <div style="font-size:9.5px; color:#64748b;">মোট প্রজেক্ট / বাজেট</div>
+              <div style="font-size:12px; font-weight:bold; color:#1e3a5f; margin-top:2px;">${summary.totalProjects} টি / ৳ ${fmt(totalBudget)}</div>
+            </td>
+            <td style="width:25%; border:1px solid #bbf7d0; background:#f0fdf4; border-radius:4px; padding:6px 8px; text-align:center;">
+              <div style="font-size:9.5px; color:#166534;">মোট প্রজেক্ট আয়</div>
+              <div style="font-size:12px; font-weight:bold; color:#16a34a; margin-top:2px;">৳ ${fmt(summary.overallIncome)}</div>
+            </td>
+            <td style="width:25%; border:1px solid #fecaca; background:#fef2f2; border-radius:4px; padding:6px 8px; text-align:center;">
+              <div style="font-size:9.5px; color:#991b1b;">মোট খরচ (ব্যয় + বিনিয়োগ)</div>
+              <div style="font-size:12px; font-weight:bold; color:#dc2626; margin-top:2px;">৳ ${fmt(totalExpAndInv)}</div>
+            </td>
+            <td style="width:25%; border:1px solid ${summary.overallNet >= 0 ? '#bbf7d0' : '#fecaca'}; background:${summary.overallNet >= 0 ? '#f0fdf4' : '#fef2f2'}; border-radius:4px; padding:6px 8px; text-align:center;">
+              <div style="font-size:9.5px; color:#1e293b;">সার্বিক নীট স্থিতি</div>
+              <div style="font-size:12px; font-weight:bold; color:${summary.overallNet >= 0 ? '#16a34a' : '#dc2626'}; margin-top:2px;">৳ ${fmt(summary.overallNet)}</div>
+            </td>
+          </tr>
+        </table>
+
+        <!-- All Projects Comparison Table -->
+        <table style="width:100%; border-collapse:collapse; margin-bottom:14px;">
+          <thead>
+            <tr>
+              <th style="padding:${cellPadding};border:1px solid #cbd5e1;text-align:center;width:30px;">#</th>
+              <th style="padding:${cellPadding};border:1px solid #cbd5e1;">প্রজেক্টের নাম</th>
+              <th style="padding:${cellPadding};border:1px solid #cbd5e1;">লোকেশন</th>
+              <th style="padding:${cellPadding};border:1px solid #cbd5e1;text-align:center;">স্ট্যাটাস</th>
+              <th style="padding:${cellPadding};border:1px solid #cbd5e1;text-align:right;">বাজেট</th>
+              <th style="padding:${cellPadding};border:1px solid #cbd5e1;text-align:right;">আয়</th>
+              <th style="padding:${cellPadding};border:1px solid #cbd5e1;text-align:right;">ব্যয়</th>
+              <th style="padding:${cellPadding};border:1px solid #cbd5e1;text-align:right;">বিনিয়োগ</th>
+              <th style="padding:${cellPadding};border:1px solid #cbd5e1;text-align:right;">মোট খরচ</th>
+              <th style="padding:${cellPadding};border:1px solid #cbd5e1;text-align:right;">নীট স্থিতি</th>
+              <th style="padding:${cellPadding};border:1px solid #cbd5e1;text-align:center;">বাজেট %</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${projectRows}
+          </tbody>
+          <tfoot>
+            <tr style="background:#e2e8f0; font-weight:bold;">
+              <td colspan="4" style="padding:${cellPadding};border:1px solid #cbd5e1;text-align:right;">সর্বমোট:</td>
+              <td style="padding:${cellPadding};border:1px solid #cbd5e1;text-align:right;">৳ ${fmt(totalBudget)}</td>
+              <td style="padding:${cellPadding};border:1px solid #cbd5e1;text-align:right;color:#16a34a;">৳ ${fmt(summary.overallIncome)}</td>
+              <td style="padding:${cellPadding};border:1px solid #cbd5e1;text-align:right;color:#dc2626;">৳ ${fmt(summary.overallExpense)}</td>
+              <td style="padding:${cellPadding};border:1px solid #cbd5e1;text-align:right;color:#2563eb;">৳ ${fmt(summary.overallInvestment)}</td>
+              <td style="padding:${cellPadding};border:1px solid #cbd5e1;text-align:right;font-weight:bold;">৳ ${fmt(totalExpAndInv)}</td>
+              <td style="padding:${cellPadding};border:1px solid #cbd5e1;text-align:right;font-weight:bold;color:${summary.overallNet >= 0 ? '#16a34a' : '#dc2626'};">৳ ${fmt(summary.overallNet)}</td>
+              <td style="padding:${cellPadding};border:1px solid #cbd5e1;text-align:center;">-</td>
+            </tr>
+          </tfoot>
+        </table>
+
+        <!-- Signatures -->
+        <table style="width:100%; border-collapse:collapse; border:none; margin-top:${isForPdf ? '35px' : '55px'}; text-align:center; font-size:${isForPdf ? '9.5px' : '11px'}; color:#64748b;">
+          <tr>
+            <td style="width:25%; border:none; padding:0;"><div style="border-top:1px solid #cbd5e1;width:${isForPdf ? '110px' : '140px'};margin:0 auto;padding-top:4px;">প্রস্তুতকারীর স্বাক্ষর</div></td>
+            <td style="width:25%; border:none; padding:0;"><div style="border-top:1px solid #cbd5e1;width:${isForPdf ? '110px' : '140px'};margin:0 auto;padding-top:4px;">কোষাধক্ষের স্বাক্ষর</div></td>
+            <td style="width:25%; border:none; padding:0;"><div style="border-top:1px solid #cbd5e1;width:${isForPdf ? '110px' : '140px'};margin:0 auto;padding-top:4px;">সহ-সভাপতির স্বাক্ষর</div></td>
+            <td style="width:25%; border:none; padding:0;"><div style="border-top:1px solid #cbd5e1;width:${isForPdf ? '110px' : '140px'};margin:0 auto;padding-top:4px;">সভাপতির স্বাক্ষর</div></td>
+          </tr>
+        </table>
+      </body></html>`;
+    }
+
+    // Mode B: একক প্রজেক্ট (SINGLE Project Detailed Report)
+    const proj = projectReportData.data.project;
+    const metrics = projectReportData.data.metrics;
+    const breakdown = projectReportData.data.categoryBreakdown;
+    const vouchers = projectReportData.data.vouchers || [];
+    const totalExpAndInv = metrics.totalExpense + metrics.totalInvestment;
+
+    const voucherRows = vouchers.length === 0
+      ? `<tr><td colspan="7" style="text-align:center;padding:12px;color:#94a3b8;">কোনো ভাউচার পাওয়া যায়নি</td></tr>`
+      : vouchers.map((v: any, i: number) => `
+        <tr style="background:${i % 2 === 0 ? '#fff' : '#f8fafc'}">
+          <td style="padding:${cellPadding};border:1px solid #cbd5e1;text-align:center;font-size:${cellFontSize};">${i + 1}</td>
+          <td style="padding:${cellPadding};border:1px solid #cbd5e1;text-align:center;font-size:${cellFontSize};">${fmtDate(v.date)}</td>
+          <td style="padding:${cellPadding};border:1px solid #cbd5e1;font-size:${cellFontSize};font-weight:600;">${v.voucherNo || '-'}</td>
+          <td style="padding:${cellPadding};border:1px solid #cbd5e1;text-align:center;font-size:${cellFontSize};">
+            <span style="font-weight:600;color:${v.type === 'INCOME' ? '#16a34a' : v.type === 'INVESTMENT' ? '#2563eb' : '#dc2626'};">
+              ${v.type === 'INCOME' ? 'আয়' : v.type === 'INVESTMENT' ? 'বিনিয়োগ' : 'সাধারণ ব্যয়'}
+            </span>
+          </td>
+          <td style="padding:${cellPadding};border:1px solid #cbd5e1;font-size:${cellFontSize};">${v.category}</td>
+          <td style="padding:${cellPadding};border:1px solid #cbd5e1;font-size:${cellFontSize};">${v.member ? `${v.member.name} (${v.member.memberId})` : (v.description || '-')}</td>
+          <td style="padding:${cellPadding};border:1px solid #cbd5e1;text-align:right;font-weight:600;color:${v.type === 'INCOME' ? '#16a34a' : '#dc2626'};font-size:${cellFontSize};">৳ ${fmt(v.amount)}</td>
+        </tr>
+      `).join('');
+
+    return `<!DOCTYPE html><html lang="bn"><head><meta charset="UTF-8"/>
+      <title>প্রজেক্ট আর্থিক বিবরণী — ${proj.name}</title>
+      <style>
+        *{box-sizing:border-box}
+        body{width:800px;font-family:Arial,sans-serif;font-size:${isForPdf ? '10.5px' : '12px'};color:#1e293b;margin:${isForPdf ? '0 auto' : '20px auto'};padding:${isForPdf ? '6px 12px' : '10px'}}
+        h1{font-size:${isForPdf ? '18px' : '20px'};color:#1e3a5f;margin:0}
+        h2{font-size:${isForPdf ? '13px' : '14px'};color:#334155;margin:3px 0 0}
+        table{width:100%;border-collapse:collapse;font-size:${cellFontSize}}
+        th{background:#f1f5f9;padding:${cellPadding};border:1px solid #cbd5e1;font-weight:600;font-size:${cellFontSize};text-align:left;}
+        td{padding:${cellPadding};border:1px solid #cbd5e1;font-size:${cellFontSize};}
+        @media print{body{width:800px;margin:12px}@page{size:A4 portrait;margin:10mm}}
+      </style></head><body>
+      <table style="width:100%; border-collapse:collapse; ${isForPdf ? '' : 'border-bottom:2px solid #1e3a5f; margin-bottom:14px; padding-bottom:10px;'}">
+        <tr>
+          ${companyProfile?.logo ? `
+          <td style="width:${isForPdf ? '55px' : '65px'}; vertical-align:middle; border:none; padding:0;">
+            <img src="${process.env.API_HOST}${companyProfile.logo}" style="height:${isForPdf ? '45px' : '55px'}; width:${isForPdf ? '45px' : '55px'}; object-fit:contain; display:block;" alt="Logo"/>
+          </td>` : ''}
+          <td style="vertical-align:middle; text-align:center; border:none; padding:0;">
+            <div style="${companyProfile?.logo ? (isForPdf ? 'margin-right:55px;' : 'margin-right:65px;') : ''}">
+              <h1 style="font-size:${isForPdf ? '18px' : '20px'}; color:#1e3a5f; margin:0;">${companyProfile?.name || 'সমবায় সমিতি'}</h1>
+              ${companyProfile?.address ? `<div style="font-size:${isForPdf ? '10px' : '11px'}; color:#64748b; margin-top:2px;">${companyProfile.address}</div>` : ''}
+              <h2 style="font-size:${isForPdf ? '13px' : '14px'}; color:#334155; margin:3px 0 0;">প্রজেক্ট বিবরণী: ${proj.name} ${proj.code ? `(${proj.code})` : ''}</h2>
+              <div style="font-size:${isForPdf ? '10.5px' : '11px'}; color:#1e3a5f; font-weight:600; margin-top:3px;">${reportTimeText}</div>
+              <div style="font-size:${isForPdf ? '9.5px' : '10.5px'}; color:#64748b; margin-top:2px; ${isForPdf ? 'margin-bottom:8px; line-height:1.2;' : ''} text-align:right;">মুদ্রণের তারিখ: ${new Date().toLocaleDateString('bn-BD', { day: '2-digit', month: 'long', year: 'numeric' })}</div>
+            </div>
+          </td>
+        </tr>
+      </table>
+      ${isForPdf ? '<div style="border-bottom:2px solid #1e3a5f; margin:0 0 12px 0; clear:both; width:100%;"></div>' : ''}
+
+      <!-- Project Info Summary Table -->
+      <table style="width:100%; border-collapse:collapse; background:#f8fafc; border:1px solid #cbd5e1; margin-bottom:12px; font-size:${cellFontSize};">
+        <tr>
+          <td style="padding:${cellPadding}; border:1px solid #cbd5e1; width:25%;"><strong>লোকেশন:</strong> ${proj.location || '-'}</td>
+          <td style="padding:${cellPadding}; border:1px solid #cbd5e1; width:25%;"><strong>স্ট্যাটাস:</strong> ${proj.status === 'ONGOING' ? 'চলমান' : proj.status === 'COMPLETED' ? 'সম্পন্ন' : proj.status === 'PLANNED' ? 'পরিকল্পিত' : 'স্থগিত'}</td>
+          <td style="padding:${cellPadding}; border:1px solid #cbd5e1; width:25%;"><strong>প্রাক্কলিত বাজেট:</strong> ৳ ${fmt(proj.budget || 0)}</td>
+          <td style="padding:${cellPadding}; border:1px solid #cbd5e1; width:25%;"><strong>বাজেট ব্যবহার:</strong> ${metrics.budgetUtilization}%</td>
+        </tr>
+      </table>
+
+      <!-- 4 Financial Metric Cards -->
+      <table style="width:100%; border-collapse:separate; border-spacing:${isForPdf ? '6px' : '8px'} 0; margin-bottom:${isForPdf ? '12px' : '16px'}; table-layout:fixed;">
+        <tr>
+          <td style="width:25%; border:1px solid #bbf7d0; background:#f0fdf4; border-radius:4px; padding:6px 8px; text-align:center;">
+            <div style="font-size:9.5px; color:#166534;">মোট প্রজেক্ট আয়</div>
+            <div style="font-size:12px; font-weight:bold; color:#16a34a; margin-top:2px;">৳ ${fmt(metrics.totalIncome)}</div>
+          </td>
+          <td style="width:25%; border:1px solid #fecaca; background:#fef2f2; border-radius:4px; padding:6px 8px; text-align:center;">
+            <div style="font-size:9.5px; color:#991b1b;">সাধারণ ব্যয়</div>
+            <div style="font-size:12px; font-weight:bold; color:#dc2626; margin-top:2px;">৳ ${fmt(metrics.totalExpense)}</div>
+          </td>
+          <td style="width:25%; border:1px solid #bfdbfe; background:#eff6ff; border-radius:4px; padding:6px 8px; text-align:center;">
+            <div style="font-size:9.5px; color:#1e40af;">বিনিয়োগ বাবদ খরচ</div>
+            <div style="font-size:12px; font-weight:bold; color:#2563eb; margin-top:2px;">৳ ${fmt(metrics.totalInvestment)}</div>
+          </td>
+          <td style="width:25%; border:1px solid ${metrics.netBalance >= 0 ? '#bbf7d0' : '#fecaca'}; background:${metrics.netBalance >= 0 ? '#f0fdf4' : '#fef2f2'}; border-radius:4px; padding:6px 8px; text-align:center;">
+            <div style="font-size:9.5px; color:#1e293b;">নীট ফলাফল / স্থিতি</div>
+            <div style="font-size:12px; font-weight:bold; color:${metrics.netBalance >= 0 ? '#16a34a' : '#dc2626'}; margin-top:2px;">৳ ${fmt(metrics.netBalance)}</div>
+          </td>
+        </tr>
+      </table>
+
+      <!-- Category Breakdown side by side (if available) -->
+      <table style="width:100%; border-collapse:collapse; margin-bottom:14px; table-layout:fixed;">
+        <tr>
+          <!-- Incomes Breakdown -->
+          <td style="width:33.33%; vertical-align:top; border:none; padding:0 4px 0 0;">
+            <div style="background:#16a34a; color:#fff; padding:4px 8px; font-weight:bold; font-size:${cellFontSize}; border-radius:4px 4px 0 0;">আয়ের খাতসমূহ</div>
+            <table style="width:100%; border-collapse:collapse;">
+              ${breakdown.income.length === 0 ? `<tr><td style="padding:6px; color:#94a3b8; text-align:center;">কোনো আয় নেই</td></tr>` : breakdown.income.map((c: any) => `
+                <tr>
+                  <td style="padding:${cellPadding}; border:1px solid #cbd5e1; font-size:${cellFontSize};">${c.category}</td>
+                  <td style="padding:${cellPadding}; border:1px solid #cbd5e1; text-align:right; color:#16a34a; font-weight:600; font-size:${cellFontSize};">৳ ${fmt(c.amount)}</td>
+                </tr>
+              `).join('')}
+            </table>
+          </td>
+          <!-- Expenses Breakdown -->
+          <td style="width:33.33%; vertical-align:top; border:none; padding:0 2px 0 2px;">
+            <div style="background:#dc2626; color:#fff; padding:4px 8px; font-weight:bold; font-size:${cellFontSize}; border-radius:4px 4px 0 0;">ব্যয়ের খাতসমূহ</div>
+            <table style="width:100%; border-collapse:collapse;">
+              ${breakdown.expense.length === 0 ? `<tr><td style="padding:6px; color:#94a3b8; text-align:center;">কোনো ব্যয় নেই</td></tr>` : breakdown.expense.map((c: any) => `
+                <tr>
+                  <td style="padding:${cellPadding}; border:1px solid #cbd5e1; font-size:${cellFontSize};">${c.category}</td>
+                  <td style="padding:${cellPadding}; border:1px solid #cbd5e1; text-align:right; color:#dc2626; font-weight:600; font-size:${cellFontSize};">৳ ${fmt(c.amount)}</td>
+                </tr>
+              `).join('')}
+            </table>
+          </td>
+          <!-- Investments Breakdown -->
+          <td style="width:33.33%; vertical-align:top; border:none; padding:0 0 0 4px;">
+            <div style="background:#2563eb; color:#fff; padding:4px 8px; font-weight:bold; font-size:${cellFontSize}; border-radius:4px 4px 0 0;">বিনিয়োগের খাতসমূহ</div>
+            <table style="width:100%; border-collapse:collapse;">
+              ${breakdown.investment.length === 0 ? `<tr><td style="padding:6px; color:#94a3b8; text-align:center;">কোনো বিনিয়োগ নেই</td></tr>` : breakdown.investment.map((c: any) => `
+                <tr>
+                  <td style="padding:${cellPadding}; border:1px solid #cbd5e1; font-size:${cellFontSize};">${c.category}</td>
+                  <td style="padding:${cellPadding}; border:1px solid #cbd5e1; text-align:right; color:#2563eb; font-weight:600; font-size:${cellFontSize};">৳ ${fmt(c.amount)}</td>
+                </tr>
+              `).join('')}
+            </table>
+          </td>
+        </tr>
+      </table>
+
+      <!-- Detailed Vouchers List -->
+      <div style="font-weight:bold; font-size:${cellFontSize}; margin-bottom:6px; color:#1e3a5f;">বিস্তারিত লেনদেন তালিকা (Transaction List)</div>
+      <table style="width:100%; border-collapse:collapse; margin-bottom:14px;">
+        <thead>
+          <tr>
+            <th style="padding:${cellPadding};border:1px solid #cbd5e1;text-align:center;width:30px;">#</th>
+            <th style="padding:${cellPadding};border:1px solid #cbd5e1;text-align:center;width:75px;">তারিখ</th>
+            <th style="padding:${cellPadding};border:1px solid #cbd5e1;width:80px;">ভাউচার নং</th>
+            <th style="padding:${cellPadding};border:1px solid #cbd5e1;text-align:center;width:65px;">ধরন</th>
+            <th style="padding:${cellPadding};border:1px solid #cbd5e1;">খাত</th>
+            <th style="padding:${cellPadding};border:1px solid #cbd5e1;">সদস্য / বিবরণ</th>
+            <th style="padding:${cellPadding};border:1px solid #cbd5e1;text-align:right;width:90px;">টাকা</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${voucherRows}
+        </tbody>
+        <tfoot>
+          <tr style="background:#e2e8f0; font-weight:bold;">
+            <td colspan="6" style="padding:${cellPadding};border:1px solid #cbd5e1;text-align:right;">মোট খরচ (ব্যয় + বিনিয়োগ):</td>
+            <td style="padding:${cellPadding};border:1px solid #cbd5e1;text-align:right;color:#dc2626;">৳ ${fmt(totalExpAndInv)}</td>
+          </tr>
+        </tfoot>
+      </table>
+
+      <!-- Signatures -->
+      <table style="width:100%; border-collapse:collapse; border:none; margin-top:${isForPdf ? '35px' : '55px'}; text-align:center; font-size:${isForPdf ? '9.5px' : '11px'}; color:#64748b;">
+        <tr>
+          <td style="width:25%; border:none; padding:0;"><div style="border-top:1px solid #cbd5e1;width:${isForPdf ? '110px' : '140px'};margin:0 auto;padding-top:4px;">প্রস্তুতকারীর স্বাক্ষর</div></td>
+          <td style="width:25%; border:none; padding:0;"><div style="border-top:1px solid #cbd5e1;width:${isForPdf ? '110px' : '140px'};margin:0 auto;padding-top:4px;">কোষাধক্ষের স্বাক্ষর</div></td>
+          <td style="width:25%; border:none; padding:0;"><div style="border-top:1px solid #cbd5e1;width:${isForPdf ? '110px' : '140px'};margin:0 auto;padding-top:4px;">সহ-সভাপতির স্বাক্ষর</div></td>
+          <td style="width:25%; border:none; padding:0;"><div style="border-top:1px solid #cbd5e1;width:${isForPdf ? '110px' : '140px'};margin:0 auto;padding-top:4px;">সভাপতির স্বাক্ষর</div></td>
+        </tr>
+      </table>
+    </body></html>`;
+  };
+
   // প্রিন্ট
   const handlePrint = () => {
     let html = "";
@@ -1106,6 +1460,7 @@ export default function Reports() {
     else if (activeReportTab === "income_statement") html = getIncomeReportHTML();
     else if (activeReportTab === "expense_statement") html = getExpenseReportHTML();
     else if (activeReportTab === "investment_statement") html = getInvestmentReportHTML();
+    else if (activeReportTab === "project_summary") html = getProjectReportHTML(false);
 
     if (!html) return;
 
@@ -1132,7 +1487,7 @@ export default function Reports() {
       html = getAssociationReportHTML();
       reportName = `Income_Expense_Report`;
     } else if (activeReportTab === "monthly_association") {
-      html = getMonthlyAssociationReportHTML();
+      html = getMonthlyAssociationReportHTML(true);
       reportName = `Monthly_Income_Expense_${selectedMonth || 'Report'}`;
     } else if (activeReportTab === "income_statement") {
       html = getIncomeReportHTML();
@@ -1143,16 +1498,22 @@ export default function Reports() {
     } else if (activeReportTab === "investment_statement") {
       html = getInvestmentReportHTML();
       reportName = `Investment_Statement_Report`;
+    } else if (activeReportTab === "project_summary") {
+      html = getProjectReportHTML(true);
+      reportName = selectedProjectId === "ALL"
+        ? "All_Projects_Summary_Report"
+        : `Project_${projectReportData?.data?.project?.name?.replace(/\s+/g, '_') || 'Report'}`;
     }
 
     if (!html) return;
 
+    const isProjectAll = activeReportTab === "project_summary" && selectedProjectId === "ALL";
     const opt = {
-      margin: 10,
+      margin: isProjectAll ? 8 : 10,
       filename: `${reportName}_${new Date().getTime()}.pdf`,
       image: { type: 'jpeg' as const, quality: 0.98 },
-      html2canvas: { scale: 2, useCORS: true, windowWidth: 800 },
-      jsPDF: { unit: 'mm' as const, format: 'a4' as const, orientation: 'portrait' as const }
+      html2canvas: { scale: 2, useCORS: true, windowWidth: isProjectAll ? 1050 : 800 },
+      jsPDF: { unit: 'mm' as const, format: 'a4' as const, orientation: isProjectAll ? ('landscape' as const) : ('portrait' as const) }
     };
 
     toast.info("পিডিএফ তৈরি হচ্ছে...");
@@ -1181,6 +1542,9 @@ export default function Reports() {
     setIncomeData(null);
     setExpenseData(null);
     setInvestmentData(null);
+    setSelectedProjectId("ALL");
+    setProjectReportData(null);
+    setProjectVoucherSearch("");
   };
 
   return (
@@ -1199,7 +1563,9 @@ export default function Reports() {
                     ? "আয়ের বিবরণী"
                     : activeReportTab === "expense_statement"
                       ? "ব্যয়ের বিবরণী"
-                      : "বিনিয়োগ বিবরণী"}
+                      : activeReportTab === "investment_statement"
+                        ? "বিনিয়োগ বিবরণী"
+                        : "প্রজেক্ট বিবরণী"}
           </h2>
           <p className="text-sm text-slate-500 mt-0.5">
             {activeReportTab === "member"
@@ -1212,7 +1578,9 @@ export default function Reports() {
                     ? "নির্বাচিত সময়কালের সমস্ত আয়ের খাতভিত্তিক ও বিস্তারিত লেনদেন তালিকা"
                     : activeReportTab === "expense_statement"
                       ? "নির্বাচিত সময়কালের পরিচালন ব্যয় ও বিনিয়োগ বাবদ বিস্তারিত লেনদেন তালিকা"
-                      : "নির্বাচিত সময়কালের সমস্ত বিনিয়োগের খাতভিত্তিক ও বিস্তারিত লেনদেন তালিকা"}
+                      : activeReportTab === "investment_statement"
+                        ? "নির্বাচিত সময়কালের সমস্ত বিনিয়োগের খাতভিত্তিক ও বিস্তারিত লেনদেন তালিকা"
+                        : "সকল প্রজেক্টের সামগ্রিক আর্থিক চিত্র অথবা নির্দিষ্ট প্রজেক্টের বিস্তারিত আয়, ব্যয় ও বিনিয়োগ বিবরণী"}
           </p>
         </div>
         <div className="flex gap-3">
@@ -1221,7 +1589,8 @@ export default function Reports() {
             (activeReportTab === "monthly_association" && monthlyData) ||
             (activeReportTab === "income_statement" && incomeData) ||
             (activeReportTab === "expense_statement" && expenseData) ||
-            (activeReportTab === "investment_statement" && investmentData)) && (
+            (activeReportTab === "investment_statement" && investmentData) ||
+            (activeReportTab === "project_summary" && projectReportData)) && (
               <>
                 <button
                   onClick={handlePrint}
@@ -1316,6 +1685,18 @@ export default function Reports() {
         >
           বিনিয়োগ বিবরণী
         </button>
+        <button
+          onClick={() => {
+            setActiveReportTab("project_summary");
+            resetAllFilters();
+          }}
+          className={`px-4 py-3 font-semibold text-sm transition-all border-b-2 whitespace-nowrap ${activeReportTab === "project_summary"
+            ? "border-amber-600 text-amber-600"
+            : "border-transparent text-slate-500 hover:text-slate-800"
+            }`}
+        >
+          প্রজেক্ট বিবরণী
+        </button>
       </div>
 
       {/* ফিল্টার প্যানেল */}
@@ -1333,6 +1714,45 @@ export default function Reports() {
             </div>
             <div className="text-xs text-slate-500 pb-2">
               নির্বাচিত মাস: <span className="font-semibold text-slate-800">{fmtMonth(selectedMonth)}</span>
+            </div>
+          </div>
+        ) : activeReportTab === "project_summary" ? (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1.5">প্রজেক্ট নির্বাচন করুন</label>
+              <select
+                value={selectedProjectId}
+                onChange={e => {
+                  setSelectedProjectId(e.target.value);
+                  setProjectReportData(null);
+                }}
+                className="w-full px-3 py-2.5 border rounded-lg outline-none focus:ring-2 focus:ring-amber-500 text-sm bg-white"
+              >
+                <option value="ALL">সকল প্রজেক্ট (All Projects Summary)</option>
+                {projectsList.map(p => (
+                  <option key={p.id} value={p.id}>
+                    {p.name} {p.code ? `(${p.code})` : ""}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1.5">শুরুর তারিখ</label>
+              <input
+                type="date"
+                value={fromDate}
+                onChange={e => setFromDate(e.target.value)}
+                className="w-full px-3 py-2.5 border rounded-lg outline-none focus:ring-2 focus:ring-amber-500 text-sm"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1.5">শেষ তারিখ</label>
+              <input
+                type="date"
+                value={toDate}
+                onChange={e => setToDate(e.target.value)}
+                className="w-full px-3 py-2.5 border rounded-lg outline-none focus:ring-2 focus:ring-amber-500 text-sm"
+              />
             </div>
           </div>
         ) : (
@@ -1407,19 +1827,15 @@ export default function Reports() {
 
         <div className="mt-4 flex gap-3">
           <button
-            onClick={
-              activeReportTab === "member"
-                ? fetchStatement
-                : activeReportTab === "association"
-                  ? fetchAssociationReport
-                  : activeReportTab === "monthly_association"
-                    ? fetchMonthlyAssociationReport
-                    : activeReportTab === "income_statement"
-                      ? fetchIncomeReport
-                      : activeReportTab === "expense_statement"
-                        ? fetchExpenseReport
-                        : fetchInvestmentReport
-            }
+            onClick={() => {
+              if (activeReportTab === "member") fetchStatement();
+              else if (activeReportTab === "association") fetchAssociationReport();
+              else if (activeReportTab === "monthly_association") fetchMonthlyAssociationReport();
+              else if (activeReportTab === "income_statement") fetchIncomeReport();
+              else if (activeReportTab === "expense_statement") fetchExpenseReport();
+              else if (activeReportTab === "investment_statement") fetchInvestmentReport();
+              else if (activeReportTab === "project_summary") fetchProjectReport();
+            }}
             disabled={
               activeReportTab === "member"
                 ? (!selectedMember || loadingStatement)
@@ -1431,7 +1847,9 @@ export default function Reports() {
                       ? loadingIncome
                       : activeReportTab === "expense_statement"
                         ? loadingExpense
-                        : loadingInvestment
+                        : activeReportTab === "investment_statement"
+                          ? loadingInvestment
+                          : loadingProjectReport
             }
             className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-white px-5 py-2.5 rounded-lg font-medium transition text-sm"
           >
@@ -1446,9 +1864,11 @@ export default function Reports() {
                     ? (loadingIncome ? "লোড হচ্ছে..." : "আয়ের বিবরণী দেখুন")
                     : activeReportTab === "expense_statement"
                       ? (loadingExpense ? "লোড হচ্ছে..." : "ব্যয়ের বিবরণী দেখুন")
-                      : (loadingInvestment ? "লোড হচ্ছে..." : "বিনিয়োগ বিবরণী দেখুন")}
+                      : activeReportTab === "investment_statement"
+                        ? (loadingInvestment ? "লোড হচ্ছে..." : "বিনিয়োগ বিবরণী দেখুন")
+                        : (loadingProjectReport ? "লোড হচ্ছে..." : "প্রজেক্ট বিবরণী দেখুন")}
           </button>
-          {(selectedMember || fromDate || toDate || statement || associationData || monthlyData || incomeData || expenseData || investmentData) && (
+          {(selectedMember || fromDate || toDate || statement || associationData || monthlyData || incomeData || expenseData || investmentData || (activeReportTab === "project_summary" && (selectedProjectId !== "ALL" || projectReportData))) && (
             <button
               onClick={resetAllFilters}
               className="px-4 py-2.5 text-slate-600 border border-slate-200 hover:bg-slate-50 rounded-lg text-sm transition"
@@ -2645,7 +3065,605 @@ export default function Reports() {
         </div>
       )}
 
+      {/* ——— প্রজেক্ট বিবরণী ভিউ (সকল প্রজেক্ট বা সিঙ্গেল প্রজেক্ট) ——— */}
+      {activeReportTab === "project_summary" && projectReportData && (
+        <div className="space-y-6">
+          {/* ========== মোড ১: সকল প্রজেক্টের সামগ্রিক সামারি ========== */}
+          {projectReportData.mode === "ALL" && (() => {
+            const allData = projectReportData.data;
+            const projects = allData?.projects || [];
+            const summary = allData?.summary || { totalProjects: 0, overallInvestment: 0, overallIncome: 0, overallExpense: 0, overallNet: 0 };
+            const totalBudget = projects.reduce((acc: number, p: any) => acc + (p.budget || 0), 0);
+            const totalExpAndInv = (summary.overallExpense || 0) + (summary.overallInvestment || 0);
+
+            return (
+              <div className="space-y-6">
+                {/* টপ ব্যানার */}
+                <div className="bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 rounded-2xl p-6 text-white shadow-xl flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                  <div className="flex items-center gap-4">
+                    <div className="w-14 h-14 rounded-2xl bg-amber-500/20 border border-amber-500/30 flex items-center justify-center shrink-0">
+                      <Building2 className="text-amber-400" size={32} />
+                    </div>
+                    <div>
+                      <h2 className="text-2xl font-bold tracking-tight text-white flex items-center gap-2">
+                        সকল প্রজেক্টের সামগ্রিক আর্থিক বিবরণী
+                      </h2>
+                      <p className="text-sm text-slate-300 mt-1">
+                        {fromDate || toDate
+                          ? `সময়সীমা: ${fromDate ? fmtDate(fromDate) : "শুরু"} হতে ${toDate ? fmtDate(toDate) : "বর্তমান"} পর্যন্ত`
+                          : "সার্বিক বিবরণী — সকল তারিখের সামগ্রিক তথ্য"}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <div className="bg-white/10 backdrop-blur rounded-xl px-4 py-2.5 border border-white/10 text-center">
+                      <div className="text-xs text-slate-300 font-medium">মোট প্রজেক্ট</div>
+                      <div className="text-xl font-bold text-amber-400">{summary.totalProjects} টি</div>
+                    </div>
+                    <div className="bg-white/10 backdrop-blur rounded-xl px-4 py-2.5 border border-white/10 text-center">
+                      <div className="text-xs text-slate-300 font-medium">সার্বিক স্থিতি</div>
+                      <div className={`text-xl font-bold ${summary.overallNet >= 0 ? "text-emerald-400" : "text-rose-400"}`}>
+                        ৳ {fmt(summary.overallNet)}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* ৬টি সামারি মেট্রিক কার্ড */}
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+                  <div className="bg-white rounded-xl p-4 shadow-sm border border-slate-200">
+                    <div className="text-xs font-semibold text-slate-500 uppercase">মোট বাজেট</div>
+                    <div className="text-lg font-bold text-slate-800 mt-1.5">৳ {fmt(totalBudget)}</div>
+                    <div className="text-[11px] text-slate-400 mt-0.5">{summary.totalProjects} টি প্রজেক্টে</div>
+                  </div>
+
+                  <div className="bg-white rounded-xl p-4 shadow-sm border border-emerald-100 bg-emerald-50/20">
+                    <div className="text-xs font-semibold text-emerald-700 uppercase">মোট প্রজেক্ট আয়</div>
+                    <div className="text-lg font-bold text-emerald-600 mt-1.5">৳ {fmt(summary.overallIncome)}</div>
+                    <div className="text-[11px] text-emerald-600/70 mt-0.5">বিক্রয় ও অন্যান্য প্রাপ্তি</div>
+                  </div>
+
+                  <div className="bg-white rounded-xl p-4 shadow-sm border border-rose-100 bg-rose-50/20">
+                    <div className="text-xs font-semibold text-rose-700 uppercase">মোট সাধারণ ব্যয়</div>
+                    <div className="text-lg font-bold text-rose-600 mt-1.5">৳ {fmt(summary.overallExpense)}</div>
+                    <div className="text-[11px] text-rose-600/70 mt-0.5">প্রজেক্ট অপারেশনাল খরচ</div>
+                  </div>
+
+                  <div className="bg-white rounded-xl p-4 shadow-sm border border-indigo-100 bg-indigo-50/20">
+                    <div className="text-xs font-semibold text-indigo-700 uppercase">মোট প্রজেক্ট বিনিয়োগ</div>
+                    <div className="text-lg font-bold text-indigo-600 mt-1.5">৳ {fmt(summary.overallInvestment)}</div>
+                    <div className="text-[11px] text-indigo-600/70 mt-0.5">মূলধনী ও সাইট ব্যয়</div>
+                  </div>
+
+                  <div className="bg-white rounded-xl p-4 shadow-sm border border-amber-100 bg-amber-50/20">
+                    <div className="text-xs font-semibold text-amber-800 uppercase">মোট খরচ (ব্যয়+বিনিয়োগ)</div>
+                    <div className="text-lg font-bold text-amber-700 mt-1.5">৳ {fmt(totalExpAndInv)}</div>
+                    <div className="text-[11px] text-amber-700/70 mt-0.5">সর্বমোট অর্থ নির্গমন</div>
+                  </div>
+
+                  <div className={`bg-white rounded-xl p-4 shadow-sm border ${summary.overallNet >= 0 ? "border-emerald-200 bg-emerald-50/40" : "border-rose-200 bg-rose-50/40"}`}>
+                    <div className={`text-xs font-semibold uppercase ${summary.overallNet >= 0 ? "text-emerald-800" : "text-rose-800"}`}>
+                      সার্বিক নীট স্থিতি
+                    </div>
+                    <div className={`text-lg font-bold mt-1.5 ${summary.overallNet >= 0 ? "text-emerald-700" : "text-rose-700"}`}>
+                      ৳ {fmt(summary.overallNet)}
+                    </div>
+                    <div className="text-[11px] text-slate-500 mt-0.5">
+                      {summary.overallNet >= 0 ? "উদ্বৃত্ত / লাভ" : "ঘাটতি / ক্যাশফ্লো"}
+                    </div>
+                  </div>
+                </div>
+
+                {/* সকল প্রজেক্টের তুলনামূলক টেবিল */}
+                <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                  <div className="bg-slate-900 text-white px-6 py-4 flex flex-col md:flex-row justify-between items-start md:items-center gap-2">
+                    <div>
+                      <h3 className="font-bold text-lg text-white">প্রজেক্টভিত্তিক তুলনামূলক হিসাব বিবরনী</h3>
+                      <p className="text-xs text-slate-300 mt-0.5">প্রতিটি প্রজেক্টের বাজেট, আয়, ব্যয়, বিনিয়োগ এবং নীট স্থিতির বিস্তারিত তালিকা</p>
+                    </div>
+                    <span className="text-xs bg-white/10 px-3 py-1.5 rounded-full font-medium text-amber-300 border border-white/10">
+                      {projects.length} টি প্রজেক্ট
+                    </span>
+                  </div>
+
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm text-left">
+                      <thead className="bg-slate-100 text-slate-700 font-semibold border-b border-slate-200 uppercase text-xs">
+                        <tr>
+                          <th className="px-4 py-3.5 text-center w-12">#</th>
+                          <th className="px-4 py-3.5">প্রজেক্টের নাম ও কোড</th>
+                          <th className="px-4 py-3.5">লোকেশন</th>
+                          <th className="px-4 py-3.5 text-center">স্ট্যাটাস</th>
+                          <th className="px-4 py-3.5 text-right">বাজেট</th>
+                          <th className="px-4 py-3.5 text-right text-emerald-700">আয় (+)</th>
+                          <th className="px-4 py-3.5 text-right text-rose-700">ব্যয় (-)</th>
+                          <th className="px-4 py-3.5 text-right text-indigo-700">বিনিয়োগ (-)</th>
+                          <th className="px-4 py-3.5 text-right text-amber-800">মোট খরচ</th>
+                          <th className="px-4 py-3.5 text-right">নীট স্থিতি</th>
+                          <th className="px-4 py-3.5 text-center">বাজেট ব্যবহার</th>
+                          <th className="px-4 py-3.5 text-center">অ্যাকশন</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100">
+                        {projects.length === 0 ? (
+                          <tr>
+                            <td colSpan={12} className="px-6 py-12 text-center text-slate-400">
+                              কোনো প্রজেক্টের তথ্য পাওয়া যায়নি
+                            </td>
+                          </tr>
+                        ) : (
+                          projects.map((p: any, idx: number) => {
+                            const pTotalCost = (p.totalExpense || 0) + (p.totalInvestment || 0);
+                            return (
+                              <tr key={p.id} className="hover:bg-slate-50/80 transition-colors">
+                                <td className="px-4 py-3 text-center text-slate-500 text-xs">{idx + 1}</td>
+                                <td className="px-4 py-3 font-semibold text-slate-900">
+                                  <div>{p.name}</div>
+                                  {p.code && <div className="text-xs text-slate-400 font-normal">{p.code}</div>}
+                                </td>
+                                <td className="px-4 py-3 text-slate-600 text-xs">{p.location || "-"}</td>
+                                <td className="px-4 py-3 text-center">
+                                  {p.status === "IN_PROGRESS" && (
+                                    <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-700">চলমান</span>
+                                  )}
+                                  {p.status === "COMPLETED" && (
+                                    <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-blue-100 text-blue-700">সম্পন্ন</span>
+                                  )}
+                                  {p.status === "PLANNING" && (
+                                    <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-100 text-amber-700">পরিকল্পনা</span>
+                                  )}
+                                  {p.status === "ON_HOLD" && (
+                                    <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-purple-100 text-purple-700">স্থগিত</span>
+                                  )}
+                                  {p.status === "CANCELLED" && (
+                                    <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-rose-100 text-rose-700">বাতিল</span>
+                                  )}
+                                  {!["IN_PROGRESS", "COMPLETED", "PLANNING", "ON_HOLD", "CANCELLED"].includes(p.status) && (
+                                    <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-slate-100 text-slate-600">{p.status || "-"}</span>
+                                  )}
+                                </td>
+                                <td className="px-4 py-3 text-right font-medium text-slate-700">
+                                  {p.budget > 0 ? `৳ ${fmt(p.budget)}` : "-"}
+                                </td>
+                                <td className="px-4 py-3 text-right font-bold text-emerald-600">
+                                  ৳ {fmt(p.totalIncome)}
+                                </td>
+                                <td className="px-4 py-3 text-right font-semibold text-rose-600">
+                                  ৳ {fmt(p.totalExpense)}
+                                </td>
+                                <td className="px-4 py-3 text-right font-semibold text-indigo-600">
+                                  ৳ {fmt(p.totalInvestment)}
+                                </td>
+                                <td className="px-4 py-3 text-right font-bold text-amber-700">
+                                  ৳ {fmt(pTotalCost)}
+                                </td>
+                                <td className={`px-4 py-3 text-right font-bold ${p.netBalance >= 0 ? "text-emerald-700" : "text-rose-700"}`}>
+                                  ৳ {fmt(p.netBalance)}
+                                </td>
+                                <td className="px-4 py-3 text-center">
+                                  {p.budget > 0 ? (
+                                    <div className="inline-block text-center">
+                                      <span className={`text-xs font-semibold ${p.budgetUtilization > 100 ? "text-rose-600 font-bold" : "text-slate-700"}`}>
+                                        {p.budgetUtilization}%
+                                      </span>
+                                      <div className="w-16 bg-slate-200 h-1.5 rounded-full overflow-hidden mt-1 mx-auto">
+                                        <div
+                                          className={`h-full ${p.budgetUtilization > 100 ? "bg-rose-500" : p.budgetUtilization > 80 ? "bg-amber-500" : "bg-blue-500"}`}
+                                          style={{ width: `${Math.min(p.budgetUtilization, 100)}%` }}
+                                        />
+                                      </div>
+                                    </div>
+                                  ) : (
+                                    <span className="text-slate-400 text-xs">-</span>
+                                  )}
+                                </td>
+                                <td className="px-4 py-3 text-center">
+                                  <button
+                                    onClick={() => {
+                                      setSelectedProjectId(p.id);
+                                      fetchProjectReport(p.id);
+                                    }}
+                                    className="inline-flex items-center gap-1 text-xs bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-semibold px-2.5 py-1 rounded border border-indigo-200 transition"
+                                  >
+                                    সিঙ্গেল রিপোর্ট
+                                  </button>
+                                </td>
+                              </tr>
+                            );
+                          })
+                        )}
+                      </tbody>
+                      {projects.length > 0 && (
+                        <tfoot className="border-t-2 border-slate-300 bg-slate-100 font-bold text-slate-800 text-xs">
+                          <tr>
+                            <td colSpan={4} className="px-4 py-3 text-right font-bold text-slate-800 text-sm">
+                              সর্বমোট যোগফল:
+                            </td>
+                            <td className="px-4 py-3 text-right text-slate-900 text-sm">৳ {fmt(totalBudget)}</td>
+                            <td className="px-4 py-3 text-right text-emerald-700 text-sm">৳ {fmt(summary.overallIncome)}</td>
+                            <td className="px-4 py-3 text-right text-rose-700 text-sm">৳ {fmt(summary.overallExpense)}</td>
+                            <td className="px-4 py-3 text-right text-indigo-700 text-sm">৳ {fmt(summary.overallInvestment)}</td>
+                            <td className="px-4 py-3 text-right text-amber-800 text-sm">৳ {fmt(totalExpAndInv)}</td>
+                            <td className={`px-4 py-3 text-right text-sm ${summary.overallNet >= 0 ? "text-emerald-700" : "text-rose-700"}`}>
+                              ৳ {fmt(summary.overallNet)}
+                            </td>
+                            <td colSpan={2} className="px-4 py-3 text-center text-slate-500">
+                              {totalBudget > 0 ? `${Math.round((totalExpAndInv / totalBudget) * 100)}% ব্যয়িত` : "-"}
+                            </td>
+                          </tr>
+                        </tfoot>
+                      )}
+                    </table>
+                  </div>
+                </div>
+              </div>
+            );
+          })()}
+
+          {/* ========== মোড ২: একক প্রজেক্টের পূর্ণাঙ্গ বিবরণী ========== */}
+          {projectReportData.mode === "SINGLE" && (() => {
+            const singleData = projectReportData.data;
+            const proj = singleData?.project || {};
+            const summary = singleData?.summary || { totalInvestment: 0, totalIncome: 0, totalExpense: 0, netBalance: 0, totalCost: 0, budgetUtilization: 0 };
+            const breakdown = singleData?.breakdown || { investmentCategories: {}, incomeCategories: {}, expenseCategories: {} };
+            const rawVouchers = singleData?.vouchers || [];
+
+            const filteredVouchers = rawVouchers.filter((v: any) => {
+              if (!projectVoucherSearch) return true;
+              const q = projectVoucherSearch.toLowerCase();
+              return (
+                (v.voucherNo && v.voucherNo.toLowerCase().includes(q)) ||
+                (v.category && v.category.toLowerCase().includes(q)) ||
+                (v.description && v.description.toLowerCase().includes(q)) ||
+                (v.member && v.member.name && v.member.name.toLowerCase().includes(q))
+              );
+            });
+
+            return (
+              <div className="space-y-6">
+                {/* একক প্রজেক্টের হেডার ব্যানার */}
+                <div className="bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 rounded-2xl p-6 text-white shadow-xl">
+                  <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                    <div className="flex items-start gap-4">
+                      <div className="w-14 h-14 rounded-2xl bg-amber-500/20 border border-amber-500/30 flex items-center justify-center shrink-0 mt-1">
+                        <Building2 className="text-amber-400" size={32} />
+                      </div>
+                      <div>
+                        <div className="flex flex-wrap items-center gap-2">
+                          <h2 className="text-2xl font-bold tracking-tight text-white">{proj.name}</h2>
+                          {proj.code && (
+                            <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-white/20 text-white">
+                              {proj.code}
+                            </span>
+                          )}
+                          {proj.status === "IN_PROGRESS" && (
+                            <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">চলমান</span>
+                          )}
+                          {proj.status === "COMPLETED" && (
+                            <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-blue-500/20 text-blue-300 border border-blue-500/30">সম্পন্ন</span>
+                          )}
+                          {proj.status === "PLANNING" && (
+                            <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-500/20 text-amber-300 border border-amber-500/30">পরিকল্পনা</span>
+                          )}
+                          {proj.status === "ON_HOLD" && (
+                            <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-purple-500/20 text-purple-300 border border-purple-500/30">স্থগিত</span>
+                          )}
+                          {proj.status === "CANCELLED" && (
+                            <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-rose-500/20 text-rose-300 border border-rose-500/30">বাতিল</span>
+                          )}
+                        </div>
+                        <p className="text-sm text-slate-300 mt-1">
+                          {proj.location && <span className="mr-3">📍 {proj.location}</span>}
+                          {fromDate || toDate
+                            ? `সময়সীমা: ${fromDate ? fmtDate(fromDate) : "শুরু"} হতে ${toDate ? fmtDate(toDate) : "বর্তমান"} পর্যন্ত`
+                            : "সার্বিক প্রজেক্ট বিবরণী — সকল তারিখ"}
+                        </p>
+                        {proj.description && (
+                          <p className="text-xs text-slate-400 mt-1.5 italic max-w-2xl">{proj.description}</p>
+                        )}
+                      </div>
+                    </div>
+
+                    <button
+                      onClick={() => {
+                        setSelectedProjectId("ALL");
+                        fetchProjectReport("ALL");
+                      }}
+                      className="inline-flex items-center gap-2 bg-white/10 hover:bg-white/20 text-white px-4 py-2 rounded-xl text-sm font-medium border border-white/10 transition shrink-0"
+                    >
+                      ← সকল প্রজেক্টের সামারিতে ফিরুন
+                    </button>
+                  </div>
+                </div>
+
+                {/* একক প্রজেক্টের ৬টি আর্থিক কার্ড */}
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+                  <div className="bg-white rounded-xl p-4 shadow-sm border border-slate-200">
+                    <div className="text-xs font-semibold text-slate-500 uppercase">প্রজেক্ট বাজেট</div>
+                    <div className="text-lg font-bold text-slate-800 mt-1.5">
+                      {proj.budget > 0 ? `৳ ${fmt(proj.budget)}` : "অনির্ধারিত"}
+                    </div>
+                    <div className="text-[11px] text-slate-400 mt-0.5">অনুমোদিত বরাদ্দ</div>
+                  </div>
+
+                  <div className="bg-white rounded-xl p-4 shadow-sm border border-emerald-100 bg-emerald-50/20">
+                    <div className="text-xs font-semibold text-emerald-700 uppercase">মোট প্রজেক্ট আয়</div>
+                    <div className="text-lg font-bold text-emerald-600 mt-1.5">৳ {fmt(summary.totalIncome)}</div>
+                    <div className="text-[11px] text-emerald-600/70 mt-0.5">বিক্রয় ও অন্যান্য জমা</div>
+                  </div>
+
+                  <div className="bg-white rounded-xl p-4 shadow-sm border border-rose-100 bg-rose-50/20">
+                    <div className="text-xs font-semibold text-rose-700 uppercase">সাধারণ খরচ</div>
+                    <div className="text-lg font-bold text-rose-600 mt-1.5">৳ {fmt(summary.totalExpense)}</div>
+                    <div className="text-[11px] text-rose-600/70 mt-0.5">অপারেশনাল ব্যয়</div>
+                  </div>
+
+                  <div className="bg-white rounded-xl p-4 shadow-sm border border-indigo-100 bg-indigo-50/20">
+                    <div className="text-xs font-semibold text-indigo-700 uppercase">বিনিয়োগ খরচ</div>
+                    <div className="text-lg font-bold text-indigo-600 mt-1.5">৳ {fmt(summary.totalInvestment)}</div>
+                    <div className="text-[11px] text-indigo-600/70 mt-0.5">মূলধনী সাইট খরচ</div>
+                  </div>
+
+                  <div className="bg-white rounded-xl p-4 shadow-sm border border-amber-100 bg-amber-50/20">
+                    <div className="text-xs font-semibold text-amber-800 uppercase">সর্বমোট খরচ</div>
+                    <div className="text-lg font-bold text-amber-700 mt-1.5">৳ {fmt(summary.totalCost)}</div>
+                    <div className="text-[11px] text-amber-700/70 mt-0.5">ব্যয় + বিনিয়োগ</div>
+                  </div>
+
+                  <div className={`bg-white rounded-xl p-4 shadow-sm border ${summary.netBalance >= 0 ? "border-emerald-200 bg-emerald-50/40" : "border-rose-200 bg-rose-50/40"}`}>
+                    <div className={`text-xs font-semibold uppercase ${summary.netBalance >= 0 ? "text-emerald-800" : "text-rose-800"}`}>
+                      নীট স্থিতি / লাভ
+                    </div>
+                    <div className={`text-lg font-bold mt-1.5 ${summary.netBalance >= 0 ? "text-emerald-700" : "text-rose-700"}`}>
+                      ৳ {fmt(summary.netBalance)}
+                    </div>
+                    <div className="text-[11px] text-slate-500 mt-0.5">
+                      {summary.netBalance >= 0 ? "উদ্বৃত্ত ব্যালেন্স" : "ঘাটতি ব্যালেন্স"}
+                    </div>
+                  </div>
+                </div>
+
+                {/* বাজেট ব্যবহার প্রগ্রেস বার */}
+                {proj.budget > 0 && (
+                  <div className="bg-white rounded-xl p-4 shadow-sm border border-slate-200">
+                    <div className="flex justify-between items-center text-sm mb-2">
+                      <span className="font-semibold text-slate-700">বাজেট ব্যবহার অগ্রগতি (Budget Utilization)</span>
+                      <span className={`font-bold ${summary.budgetUtilization > 100 ? "text-rose-600" : "text-indigo-600"}`}>
+                        {summary.budgetUtilization}% ({fmt(summary.totalCost)} / {fmt(proj.budget)})
+                      </span>
+                    </div>
+                    <div className="w-full bg-slate-100 h-3 rounded-full overflow-hidden">
+                      <div
+                        className={`h-full transition-all duration-500 ${
+                          summary.budgetUtilization > 100
+                            ? "bg-rose-500"
+                            : summary.budgetUtilization > 85
+                              ? "bg-amber-500"
+                              : "bg-emerald-500"
+                        }`}
+                        style={{ width: `${Math.min(summary.budgetUtilization, 100)}%` }}
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {/* খাতভিত্তিক সারসংক্ষেপ (আয়, সাধারণ ব্যয়, বিনিয়োগ) */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  {/* আয়ের খাতসমূহ */}
+                  <div className="bg-white rounded-xl shadow-sm border border-emerald-100 overflow-hidden">
+                    <div className="bg-emerald-700 text-white px-5 py-3 flex justify-between items-center">
+                      <h4 className="font-bold text-sm">আয়ের খাতসমূহ (Income)</h4>
+                      <span className="text-xs bg-emerald-800/80 px-2 py-0.5 rounded-full">
+                        {Object.keys(breakdown.incomeCategories || {}).length} টি খাত
+                      </span>
+                    </div>
+                    <div className="p-4">
+                      {Object.keys(breakdown.incomeCategories || {}).length === 0 ? (
+                        <div className="text-center py-6 text-slate-400 text-xs">কোনো আয়ের এন্ট্রি নেই</div>
+                      ) : (
+                        <div className="space-y-2.5">
+                          {Object.entries(breakdown.incomeCategories).map(([cat, item]: any) => (
+                            <div key={`inc-${cat}`} className="flex justify-between items-center text-xs pb-2 border-b border-slate-100 last:border-0 last:pb-0">
+                              <div>
+                                <div className="font-semibold text-slate-800">{cat}</div>
+                                <div className="text-[11px] text-slate-400">{item.count} টি ভাউচার</div>
+                              </div>
+                              <div className="font-bold text-emerald-600">৳ {fmt(item.amount)}</div>
+                            </div>
+                          ))}
+                          <div className="pt-2 border-t border-slate-200 flex justify-between font-bold text-xs text-slate-800">
+                            <span>মোট আয়:</span>
+                            <span className="text-emerald-700">৳ {fmt(summary.totalIncome)}</span>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* ব্যয়ের খাতসমূহ */}
+                  <div className="bg-white rounded-xl shadow-sm border border-rose-100 overflow-hidden">
+                    <div className="bg-rose-700 text-white px-5 py-3 flex justify-between items-center">
+                      <h4 className="font-bold text-sm">ব্যয়ের খাতসমূহ (Expense)</h4>
+                      <span className="text-xs bg-rose-800/80 px-2 py-0.5 rounded-full">
+                        {Object.keys(breakdown.expenseCategories || {}).length} টি খাত
+                      </span>
+                    </div>
+                    <div className="p-4">
+                      {Object.keys(breakdown.expenseCategories || {}).length === 0 ? (
+                        <div className="text-center py-6 text-slate-400 text-xs">কোনো সাধারণ ব্যয়ের এন্ট্রি নেই</div>
+                      ) : (
+                        <div className="space-y-2.5">
+                          {Object.entries(breakdown.expenseCategories).map(([cat, item]: any) => (
+                            <div key={`exp-${cat}`} className="flex justify-between items-center text-xs pb-2 border-b border-slate-100 last:border-0 last:pb-0">
+                              <div>
+                                <div className="font-semibold text-slate-800">{cat}</div>
+                                <div className="text-[11px] text-slate-400">{item.count} টি ভাউচার</div>
+                              </div>
+                              <div className="font-bold text-rose-600">৳ {fmt(item.amount)}</div>
+                            </div>
+                          ))}
+                          <div className="pt-2 border-t border-slate-200 flex justify-between font-bold text-xs text-slate-800">
+                            <span>মোট ব্যয়:</span>
+                            <span className="text-rose-700">৳ {fmt(summary.totalExpense)}</span>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* বিনিয়োগের খাতসমূহ */}
+                  <div className="bg-white rounded-xl shadow-sm border border-indigo-100 overflow-hidden">
+                    <div className="bg-indigo-700 text-white px-5 py-3 flex justify-between items-center">
+                      <h4 className="font-bold text-sm">বিনিয়োগ খাতসমূহ (Investment)</h4>
+                      <span className="text-xs bg-indigo-800/80 px-2 py-0.5 rounded-full">
+                        {Object.keys(breakdown.investmentCategories || {}).length} টি খাত
+                      </span>
+                    </div>
+                    <div className="p-4">
+                      {Object.keys(breakdown.investmentCategories || {}).length === 0 ? (
+                        <div className="text-center py-6 text-slate-400 text-xs">কোনো বিনিয়োগ এন্ট্রি নেই</div>
+                      ) : (
+                        <div className="space-y-2.5">
+                          {Object.entries(breakdown.investmentCategories).map(([cat, item]: any) => (
+                            <div key={`inv-${cat}`} className="flex justify-between items-center text-xs pb-2 border-b border-slate-100 last:border-0 last:pb-0">
+                              <div>
+                                <div className="font-semibold text-slate-800">{cat}</div>
+                                <div className="text-[11px] text-slate-400">{item.count} টি ভাউচার</div>
+                              </div>
+                              <div className="font-bold text-indigo-600">৳ {fmt(item.amount)}</div>
+                            </div>
+                          ))}
+                          <div className="pt-2 border-t border-slate-200 flex justify-between font-bold text-xs text-slate-800">
+                            <span>মোট বিনিয়োগ:</span>
+                            <span className="text-indigo-700">৳ {fmt(summary.totalInvestment)}</span>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* একক প্রজেক্টের বিস্তারিত ভাউচার লেনদেন তালিকা */}
+                <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                  <div className="bg-slate-900 text-white px-6 py-4 flex flex-col md:flex-row justify-between items-start md:items-center gap-3">
+                    <div>
+                      <h3 className="font-bold text-lg text-white">প্রজেক্টের বিস্তারিত ভাউচার লেনদেন তালিকা</h3>
+                      <p className="text-xs text-slate-300 mt-0.5">উক্ত প্রজেক্টে সংঘটিত সকল ভাউচার ট্রানজেকশনের সম্পূর্ণ বিবরণ</p>
+                    </div>
+                    <div className="flex items-center gap-3 w-full md:w-auto">
+                      <div className="relative flex-1 md:w-64">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
+                        <input
+                          type="text"
+                          placeholder="ভাউচার, খাত বা বিবরণ দিয়ে খুঁজুন..."
+                          value={projectVoucherSearch}
+                          onChange={(e) => setProjectVoucherSearch(e.target.value)}
+                          className="w-full pl-8 pr-3 py-1.5 rounded-lg bg-slate-800 text-white text-xs border border-slate-700 focus:outline-none focus:ring-1 focus:ring-amber-500 placeholder-slate-400"
+                        />
+                      </div>
+                      <span className="text-xs bg-white/10 px-3 py-1.5 rounded-full font-medium text-amber-300 border border-white/10 shrink-0">
+                        {filteredVouchers.length} টি লেনদেন
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm text-left">
+                      <thead className="bg-slate-100 text-slate-700 font-semibold border-b border-slate-200 uppercase text-xs">
+                        <tr>
+                          <th className="px-4 py-3.5 text-center w-12">ক্র নং</th>
+                          <th className="px-4 py-3.5 text-center">তারিখ</th>
+                          <th className="px-4 py-3.5 text-center">ভাউচার নং</th>
+                          <th className="px-4 py-3.5 text-center">ধরন</th>
+                          <th className="px-4 py-3.5">খাত (Category)</th>
+                          <th className="px-4 py-3.5">সদস্য / বিবরণ</th>
+                          <th className="px-4 py-3.5 text-center">পেমেন্ট মাধ্যম</th>
+                          <th className="px-4 py-3.5 text-right">পরিমাণ (টাকা)</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100">
+                        {filteredVouchers.length === 0 ? (
+                          <tr>
+                            <td colSpan={8} className="px-6 py-12 text-center text-slate-400">
+                              কোনো ভাউচার লেনদেন পাওয়া যায়নি
+                            </td>
+                          </tr>
+                        ) : (
+                          filteredVouchers.map((v: any, idx: number) => {
+                            const isInc = v.type === "INCOME";
+                            const isInv = v.type === "INVESTMENT";
+                            return (
+                              <tr key={v.id} className="hover:bg-slate-50/80 transition-colors">
+                                <td className="px-4 py-3 text-center text-slate-500 text-xs">{idx + 1}</td>
+                                <td className="px-4 py-3 text-center text-slate-700 text-xs whitespace-nowrap">
+                                  {fmtDate(v.date)}
+                                </td>
+                                <td className="px-4 py-3 text-center font-mono font-semibold text-slate-800 text-xs">
+                                  {v.voucherNo || "-"}
+                                </td>
+                                <td className="px-4 py-3 text-center">
+                                  {isInc && (
+                                    <span className="px-2 py-0.5 rounded text-xs font-semibold bg-emerald-100 text-emerald-700">আয়</span>
+                                  )}
+                                  {v.type === "EXPENSE" && (
+                                    <span className="px-2 py-0.5 rounded text-xs font-semibold bg-rose-100 text-rose-700">ব্যয়</span>
+                                  )}
+                                  {isInv && (
+                                    <span className="px-2 py-0.5 rounded text-xs font-semibold bg-indigo-100 text-indigo-700">বিনিয়োগ</span>
+                                  )}
+                                </td>
+                                <td className="px-4 py-3 font-semibold text-slate-800 text-xs">
+                                  {v.category}
+                                </td>
+                                <td className="px-4 py-3 text-xs text-slate-600">
+                                  {v.member?.name && (
+                                    <span className="font-medium text-slate-800 block">
+                                      {v.member.name} {v.member.memberId ? `(${v.member.memberId})` : ""}
+                                    </span>
+                                  )}
+                                  {v.description && <span className="text-slate-500">{v.description}</span>}
+                                  {!v.member?.name && !v.description && "-"}
+                                </td>
+                                <td className="px-4 py-3 text-center text-xs text-slate-600">
+                                  {v.paymentMethod || "-"}
+                                </td>
+                                <td className={`px-4 py-3 text-right font-bold text-sm ${isInc ? "text-emerald-600" : isInv ? "text-indigo-600" : "text-rose-600"}`}>
+                                  {isInc ? "+" : "-"} ৳ {fmt(v.amount)}
+                                </td>
+                              </tr>
+                            );
+                          })
+                        )}
+                      </tbody>
+                      {filteredVouchers.length > 0 && (
+                        <tfoot className="border-t-2 border-slate-300 bg-slate-100 font-bold text-slate-800 text-xs">
+                          <tr>
+                            <td colSpan={7} className="px-4 py-3 text-right font-bold text-slate-800 text-sm">
+                              প্রজেক্ট নীট ব্যালেন্স:
+                            </td>
+                            <td className={`px-4 py-3 text-right font-bold text-base ${summary.netBalance >= 0 ? "text-emerald-700" : "text-rose-700"}`}>
+                              ৳ {fmt(summary.netBalance)}
+                            </td>
+                          </tr>
+                        </tfoot>
+                      )}
+                    </table>
+                  </div>
+                </div>
+              </div>
+            );
+          })()}
+        </div>
+      )}
+
       {/* Fallback empty blocks */}
+      {activeReportTab === "project_summary" && !loadingProjectReport && !projectReportData && (
+        <div className="bg-white rounded-xl p-16 text-center text-slate-400 shadow-sm border border-slate-100">
+          <Building2 size={48} className="mx-auto mb-3 text-amber-500" />
+          <p className="text-lg font-medium text-slate-700">প্রজেক্ট আয়-ব্যয় ও আর্থিক বিবরণী</p>
+          <p className="text-sm mt-1">প্রজেক্ট নির্বাচন করুন (বা সকল প্রজেক্ট) এবং তারিখ সীমা দিয়ে বিবরণী দেখুন বাটনে ক্লিক করুন</p>
+        </div>
+      )}
       {activeReportTab === "member" && !loadingStatement && !statement && !selectedMember && (
         <div className="bg-white rounded-xl p-16 text-center text-slate-400 shadow-sm border border-slate-100">
           <FileText size={48} className="mx-auto mb-3 text-slate-300" />

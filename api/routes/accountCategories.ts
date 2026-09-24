@@ -64,11 +64,50 @@ router.post("/", async (req, res) => {
 router.put("/:id", async (req, res) => {
   const { id } = req.params;
   const { name, type } = req.body;
+  if (!name || !type) return res.status(400).json({ message: "নাম ও টাইপ আবশ্যক" });
+
   try {
-    await prisma.$executeRawUnsafe(
-      `UPDATE accountcategory SET name = ?, type = ?, updatedAt = NOW() WHERE id = ?`,
-      name, type, id
+    // ১. পূর্বের ক্যাটাগরির তথ্য সংগ্রহ করা
+    const existing: any[] = await prisma.$queryRawUnsafe(
+      `SELECT * FROM accountcategory WHERE id = ?`,
+      id
     );
+
+    if (existing.length === 0) {
+      return res.status(404).json({ message: "ক্যাটাগরী পাওয়া যায়নি" });
+    }
+
+    const oldCategory = existing[0];
+
+    // ২. নাম পরিবর্তন হলে নতুন নামটি অন্য কোনো ক্যাটাগরিতে ইতিমধ্যে আছে কিনা যাচাই করা
+    if (oldCategory.name !== name) {
+      const duplicate: any[] = await prisma.$queryRawUnsafe(
+        `SELECT * FROM accountcategory WHERE name = ? AND id != ?`,
+        name,
+        id
+      );
+      if (duplicate.length > 0) {
+        return res.status(400).json({ message: "এই নামে ক্যাটাগরী ইতিমধ্যে আছে" });
+      }
+    }
+
+    // ৩. ক্যাটাগরি আপডেট এবং সংশ্লিষ্ট ভাউচারগুলোতে নাম অটো-সিঙ্ক (ট্রানজ্যাকশন)
+    await prisma.$transaction(async (tx) => {
+      await tx.$executeRawUnsafe(
+        `UPDATE accountcategory SET name = ?, type = ?, updatedAt = NOW() WHERE id = ?`,
+        name, type, id
+      );
+
+      // নাম পরিবর্তন হলে ভাউচার টেবিলেও পুরানো নামের সকল ভাউচারের ক্যাটাগরি নতুন নামে আপডেট হবে
+      if (oldCategory.name !== name) {
+        await tx.$executeRawUnsafe(
+          `UPDATE voucher SET category = ? WHERE category = ?`,
+          name,
+          oldCategory.name
+        );
+      }
+    });
+
     const updated: any[] = await prisma.$queryRawUnsafe(
       `SELECT * FROM accountcategory WHERE id = ?`,
       id
@@ -87,6 +126,30 @@ router.put("/:id", async (req, res) => {
 router.delete("/:id", async (req, res) => {
   const { id } = req.params;
   try {
+    const existing: any[] = await prisma.$queryRawUnsafe(
+      `SELECT * FROM accountcategory WHERE id = ?`,
+      id
+    );
+
+    if (existing.length === 0) {
+      return res.status(404).json({ message: "ক্যাটাগরী পাওয়া যায়নি" });
+    }
+
+    const categoryName = existing[0].name;
+
+    // চেক করা এই ক্যাটাগরির অধীনে কোনো ভাউচার রয়েছে কিনা
+    const voucherCountResult: any[] = await prisma.$queryRawUnsafe(
+      `SELECT COUNT(*) as count FROM voucher WHERE category = ?`,
+      categoryName
+    );
+
+    const count = Number(voucherCountResult[0]?.count || 0);
+    if (count > 0) {
+      return res.status(400).json({
+        message: `"${categoryName}" ক্যাটাগরির অধীনে ${count} টি ভাউচার জমা আছে। তাই এটি ডিলিট করা যাবে না।`
+      });
+    }
+
     await prisma.$executeRawUnsafe(
       `DELETE FROM accountcategory WHERE id = ?`,
       id

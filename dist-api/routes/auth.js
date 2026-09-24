@@ -154,7 +154,6 @@ router.post("/member-login", async (req, res) => {
             const expiresAt = new Date(Date.now() + 5 * 60 * 1000); // 5 minutes expiration
             // Store in-memory with email key
             otpStore.set(trimmedEmail, { otp, expiresAt });
-            console.log(`[OTP Verification] Generated Email OTP for ${trimmedEmail}: ${otp} (Expires at ${expiresAt.toLocaleTimeString()})`);
             // Send via Email
             const emailSent = await sendOtpEmail(trimmedEmail, otp, member.name);
             if (!emailSent) {
@@ -180,7 +179,6 @@ router.post("/member-login", async (req, res) => {
             const expiresAt = new Date(Date.now() + 5 * 60 * 1000); // 5 minutes expiration
             // Store in-memory with phone key
             otpStore.set(trimmedPhone, { otp, expiresAt });
-            console.log(`[OTP Verification] Generated SMS OTP for ${trimmedPhone}: ${otp} (Expires at ${expiresAt.toLocaleTimeString()})`);
             // Send via SMS
             const message = `আপনার লগইন কোডটি হলো: ${otp}`;
             await sendSms(trimmedPhone, message);
